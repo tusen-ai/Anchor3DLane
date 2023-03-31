@@ -7,6 +7,7 @@ Code is scheduled to be released before April 15th, 2023.
 
 ![pipeline](images/pipeline.png)
 In this paper, we deﬁne 3D lane anchors in the 3D space and propose a BEV-free method named Anchor3DLane to predict 3D lanes directly from FV representations. 3D lane anchors are projected to the FV features to extract their features which contain both good structural and context information to make accurate predictions. We further extend Anchor3DLane to the multi-frame setting to incorporate temporal information for performance improvement.
+## Install
 
 ## Visualization
 We represent the visualization results of Anchor3DLane on ApolloSim, OpenLane and ONCE-3DLane datasets.

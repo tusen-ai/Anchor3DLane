@@ -1,0 +1,15 @@
+matplotlib==3.5.1
+munkres==1.1.4
+numpy==1.22.3
+opencv_python==4.1.2.30
+ortools==9.3.10497
+packaging==21.3
+pandas==1.5.2
+Pillow==9.5.0
+prettytable==3.4.1
+scipy==1.4.1
+Shapely==1.8.4
+tabulate==0.8.10
+tensorflow==2.4.0
+tqdm==4.64.0
+ujson==5.5.0

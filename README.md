@@ -7,7 +7,144 @@ Code is scheduled to be released before April 15th, 2023.
 
 ![pipeline](images/pipeline.png)
 In this paper, we deﬁne 3D lane anchors in the 3D space and propose a BEV-free method named Anchor3DLane to predict 3D lanes directly from FV representations. 3D lane anchors are projected to the FV features to extract their features which contain both good structural and context information to make accurate predictions. We further extend Anchor3DLane to the multi-frame setting to incorporate temporal information for performance improvement.
-## Install
+## Installation
+---
+
+#### **Step 1.** Create a conda virtual environment and activate it
+```
+conda create -n lane3d python=3.7 -y
+conda activate lane3d
+conda install pytorch==1.9.1 torchvision==0.10.1 cudatoolkit=11.1 -c pytorch -y
+```
+
+#### **Step 2.** Install dependencies
+```
+pip install -U openmim
+mim install mmcv-full
+pip install -r requirements.txt
+```
+Refer to [ONCE-3dlane](https://github.com/once-3dlanes/once_3dlanes_benchmark/tree/master/wheels) to install `jarvis`.
+
+#### **Step 3.** Install Anchor3DLane
+```
+git clone https://github.com/tusen-ai/Anchor3DLane.git
+cd Anchor3DLane
+python setup.py develop
+```
+
+This repo is implemented based on [openlab mmsegmentation-v0.26.0](https://github.com/open-mmlab/mmsegmentation/tree/v0.26.0). Refer to [here](https://github.com/open-mmlab/mmsegmentation/blob/v0.26.0/docs/en/get_started.md#installation) for more detailed information of installation.
+
+## Data Preparation
+The data folders are organized as follows:
+```
+├── data/
+|   └── Apollosim
+|       └── data_splits
+|           └── standard
+|               └── train.json
+|               └── test.json
+|           └── ...
+|       └── data_lists/...
+|       └── images/...
+|       └── cache_dense/...
+|   └── OpenLane
+|       └── data_splits/...
+|       └── data_lists/...
+|       └── images/...
+|       └── lane_1000/...
+|       └── cache_dense/...
+|       └── prev_data_release/...
+|   └── ONCE/
+|       └── raw_data/
+|           └── cam01/...
+|       └── annotations/
+|           └── train/...
+|           └── val/...
+|       └── ...
+```
+### ApolloSim
+**1.** Download dataset from [ApolloSim Dataset](https://github.com/yuliangguo/3D_Lane_Synthetic_Dataset) and organize the data folder as mentioned above.
+
+**2.** Change the data path in `apollosim.py` and generate annotation pickle files by running:
+```
+cd tools/convert_datasets
+python apollosim.py [apollo_root]
+```
+
+### OpenLane
+**1.** Refer to [OpenLane Dataset](https://github.com/OpenDriveLab/OpenLane) for data downloading and organize the data folder as mentioned above.
+
+**2.** Merge annotations and generate pickle files by running:
+```
+cd tools/convert_dataset
+python openlane.py [openlane_root] --merge
+python openlane.py [openlane_root] --generate
+```
+
+**(optional) 3.** If you wish to run the multi-frame experiments, you need to download the cross-frame pose data processed by us from [Baidu Disk](https://pan.baidu.com/s/1fxwyLeueTQKg6iBhFeIAog?pwd=7qkx).
+
+### ONCE-3DLane
+**1.** Refer to [ONCE-3DLane Dataset](https://github.com/once-3dlanes/once_3dlanes_benchmark) for data downloading and organize the data folder as mentioned above.
+
+**2.** Merge annotations and generate pickle files by running the following commands:
+```
+cd tools/convert_dataset
+python once.py [once_root] --merge
+python once.py [once_root] --generate
+```
+
+## Model Zoo
+We provide the pretrained weights of Anchor3DLane and Anchor3DLane+(w/ iterative regression) on ApolloSim-Standard and ONCE-3DLane datasets. 
+For OpenLane dataset, we additional provide weights for Anchor3DLane-T+(with multi-frame interaction).
+
+### ApolloSim
+
+Model | F1 | AP | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Disk Link
+--- |:---:|:---:|:---:|:---:|:---:|:---:|---:
+Anchor3DLane | 95.6 | 97.2 | 0.052 | 0.306 | 0.015 | 0.223 | [download](https://pan.baidu.com/s/1HPYxsNNSOO5CY7-RwAt9cw?pwd=bqvy)
+Anchor3DLane+ | 97.1 | 95.4 | 0.045 | 0.300 | 0.016 | 0.223 | [download](https://pan.baidu.com/s/1f4Ssts_cUU7kGtXUyRulLA?pwd=pfe5)
+
+### OpenLane
+
+Model | Backbone | F1 | Cate Acc | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Disk Link
+--- |:---:|:---:|:---:|:---:|:---:|:---:|:---:|---:
+Anchor3DLane | ResNet-18 | 53.1 | 90.0 | 0.300 | 0.311 | 0.103 | 0.139 | [download](https://pan.baidu.com/s/1doS4NzNdxjjuKLTazVvQFw?pwd=b7b5)
+Anchor3DLane | EfficientNet-B3 | 56.0 | 89.0 | 0.293 | 0.317 | 0.103 | 0.130 | To be added
+Anchor3DLane+ | ResNet-18 | 53.7 | 90.9 | 0.276 | 0.311 | 0.107 | 0.138 | [download](https://pan.baidu.com/s/1n1kzIWKCEY9VOBuyi5RU_g?pwd=ew8k)
+Anchor3DLane-T+ | ResNet-18 | 94.3 | 90.7 | 0.275 | 0.310 | 0.105 | 0.135 | [download](https://pan.baidu.com/s/1aEzaqONTa93xQlacQL_N8g?pwd=ymk2)
+
+### ONCE-3DLane
+Model | Backbone | F1 | Precision | Recall | CD Error/m | Baidu Disk Link
+--- |:---:|:---:|:---:|:---:|:---:|---:
+Anchor3DLane | ResNet-18 | 74.44 | 80.50 | 69.23 | 0.064 | [download](https://pan.baidu.com/s/1-vjriECcWQrVCCb-iumR8w?pwd=8nrc)
+Anchor3DLane | EfficientNet-B3 | 75.02 | 83.22 | 68.29 | 0.064 | To be added
+Anchor3DLane+ | ResNet-18 | 74.87 | 80.85 | 69.71 | 0.060 | [download](https://pan.baidu.com/s/1wNx1MY1fhLJJdYWT2P5JDA?pwd=q2xk)
+
+## Testing
+Run the following commands to evaluate the given checkpoint:
+```
+export PYTHONPATH=$PYTHONPATH:./gen-efficientnet-pytorch
+python tools/test.py [config] [checkpoint] --show-dir [output_dir] --show(optional)
+```
+You can append `--show` to generate visualization results in the `output_dir/vis`.
+
+## Training
+**1.** Download the pretrained weights of [ResNet-18](https://pan.baidu.com/s/1bahxlmC5EKHYL4vVt1pTlg?pwd=vjtx) and put it in `./pretrained/` directory.
+
+**2.** Modify the `work_dir` in the `[config]` file as your desired output directory.
+
+**3.** For single-gpu trainning, run the following command:
+```
+export PYTHONPATH=$PYTHONPATH:./gen-efficientnet-pytorch
+python tools/train.py [config]
+```
+
+**4.** For multi-gpu training, run the following commands:
+```
+bash tools/dist_train.sh [config] [num_gpu] 
+or
+bash slurm_train.sh [PARTITION] [JOB_NAME] [config]
+```
 
 ## Visualization
 We represent the visualization results of Anchor3DLane on ApolloSim, OpenLane and ONCE-3DLane datasets.
@@ -25,12 +162,12 @@ We represent the visualization results of Anchor3DLane on ApolloSim, OpenLane an
 # Citation
 If you find this repo useful for your research, please cite
 ```
-@article{anchor3dlane,
-  author    = {Huang, Shaofei and Shen, Zhenwei and Huang, Zehao and Ding, Zi-han and Dai, Jiao and Han, Jizhong and Wang, Naiyan and Liu, Si},
-  title     = {Anchor3DLane: Learning to Regress 3D Anchors for Monocular 3D Lane Detection},
-  journal   = {arXiv preprint arXiv:2301.02371},
-  year      = {2023}
+@inproceedings{huang2023anchor3dlane,
+  title = {Anchor3DLane: Learning to Regress 3D Anchors for Monocular 3D Lane Detection},
+  author = {Huang, Shaofei and Shen, Zhenwei and Huang, Zehao and Ding, Zi-han and Dai, Jiao and Han, Jizhong and Wang, Naiyan and Liu, Si},
+  booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  year = {2023}
 }
 ```
 # Contact
-For questions about our paper or code, please contact [Shaofei Huang](mailto:nowherespyfly@gmail.com).
+For questions about our paper or code, please contact **Shaofei Huang**(nowherespyfly@gmail.com).

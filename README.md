@@ -32,7 +32,7 @@ cd Anchor3DLane
 python setup.py develop
 ```
 
-This repo is implemented based on [openlab mmsegmentation-v0.26.0](https://github.com/open-mmlab/mmsegmentation/tree/v0.26.0). Refer to [here](https://github.com/open-mmlab/mmsegmentation/blob/v0.26.0/docs/en/get_started.md#installation) for more detailed information of installation.
+This repo is implemented based on [open-mmlab mmsegmentation-v0.26.0](https://github.com/open-mmlab/mmsegmentation/tree/v0.26.0). Refer to [here](https://github.com/open-mmlab/mmsegmentation/blob/v0.26.0/docs/en/get_started.md#installation) for more detailed information of installation.
 
 ## Data Preparation
 The data folders are organized as follows:

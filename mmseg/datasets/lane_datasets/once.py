@@ -58,7 +58,7 @@ class ONCEDataset(Dataset):
     def __init__(self, 
                  pipeline,
                  data_root,
-                 img_dir=None, 
+                 img_dir='raw_data', 
                  img_suffix='.jpg',
                  data_list='train.txt',
                  y_steps = [  2,  5,  8,  10,  15,  20,  25,  30,  40,  50],
@@ -68,7 +68,7 @@ class ONCEDataset(Dataset):
                  is_resample=True):
         self.pipeline = Compose(pipeline)
         self.data_root = data_root
-        self.img_dir = img_dir
+        self.img_dir = os.path.join(data_root, img_dir)
         self.img_suffix = img_suffix
         self.test_mode = test_mode
         self.metric = 'default'
@@ -76,7 +76,7 @@ class ONCEDataset(Dataset):
         self.dataset_config = dataset_config
         self.test_config = test_config
         self.data_list = os.path.join(data_root, 'data_lists', data_list)
-        self.cache_file = os.path.join(data_root, 'cache_dense')
+        self.cache_dir = os.path.join(data_root, 'cache_dense')
         self.eval_dir = os.path.join(data_root, 'annotations', 'val')
         self.eval_file = os.path.join(data_root, 'data_splits', 'val.json')
         
@@ -141,8 +141,8 @@ class ONCEDataset(Dataset):
             for k, id in enumerate(all_ids):
                 if id.startswith('/'):
                     id = id[1:]
-                anno = {'filename': os.path.join(self.data_root, 'raw_data', id),
-                        'anno_file': os.path.join(self.data_root, 'cache_dense', id.replace('.jpg', '.pkl'))}
+                anno = {'filename': os.path.join(self.img_dir, id),
+                        'anno_file': os.path.join(self.cache_dir, id.replace('.jpg', '.pkl'))}
                 self.img_infos.append(anno)
         print("after load annotation")
         print("find {} samples in {}.".format(len(self.img_infos), self.data_list))

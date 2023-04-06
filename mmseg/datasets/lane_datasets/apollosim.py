@@ -52,7 +52,7 @@ class APOLLOSIMDataset(Dataset):
     def __init__(self, 
                  pipeline,
                  data_root,
-                 img_dir=None, 
+                 img_dir='images', 
                  img_suffix='.jpg',
                  data_list='train.txt',
                  y_steps=[  5,  10,  15,  20,  30,  40,  50,  60,  80,  100],
@@ -62,7 +62,7 @@ class APOLLOSIMDataset(Dataset):
                  is_resample=True):
         self.pipeline = Compose(pipeline)
         self.data_root = data_root
-        self.img_dir = img_dir
+        self.img_dir = os.path.join(data_root, img_dir)
         self.img_suffix = img_suffix
         self.test_mode = test_mode
         self.metric = 'default'
@@ -210,10 +210,6 @@ class APOLLOSIMDataset(Dataset):
         with open(filename, 'w') as jsonFile:
             for idx in tqdm.tqdm(range(len(predictions))):
                 json_line = self.pred2apollosimformat(idx, predictions[idx])
-                if 'right_proposals_list' in predictions[idx].keys():
-                    right_json_line = self.pred2apollosimformat(idx, predictions[idx], 'right_proposals_list')
-                    json_line['laneLines_right'] = right_json_line['laneLines']
-                    json_line['laneLines_prob_right'] = right_json_line['laneLines_prob']
                 json.dump(json_line, jsonFile)
                 jsonFile.write('\n')
 

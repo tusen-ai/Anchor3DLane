@@ -205,7 +205,5 @@ class LaneVis(object):
                 raise Exception('raw_file or lanelines not in some predictions.')
             raw_file = pred['raw_file']
             gt = gts[raw_file]
-            if img_dir != 'images_00_0000052':
-                continue
             self.vis(gt, pred, save_dir, img_dir, raw_file, prob_th=prob_th)
 

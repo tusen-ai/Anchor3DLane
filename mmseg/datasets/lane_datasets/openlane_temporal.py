@@ -62,8 +62,8 @@ class OpenlaneMFDataset(OpenlaneDataset):
         with open(self.data_list, 'r') as anno_obj:
             all_ids = [s.strip() for s in anno_obj.readlines()]
             for k, id in tqdm.tqdm(enumerate(all_ids)):
-                anno = {'filename': os.path.join(self.data_root, 'images', id + self.img_suffix),
-                        'anno_file': os.path.join(self.data_root, self.cache_dir, id + '.pkl'), 
+                anno = {'filename': os.path.join(self.img_dir, id + self.img_suffix),
+                        'anno_file': os.path.join(self.cache_dir, id + '.pkl'), 
                         'prev_file': os.path.join(self.prev_dir, id + '.pkl')}
                 self.img_infos.append(anno)
         print("after load annotation")

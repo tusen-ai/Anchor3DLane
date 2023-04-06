@@ -55,7 +55,7 @@ class OpenlaneDataset(Dataset):
     def __init__(self, 
                  pipeline,
                  data_root,
-                 img_dir=None, 
+                 img_dir='images', 
                  img_suffix='.jpg',
                  data_list='training.txt',
                  test_list=None,
@@ -67,7 +67,7 @@ class OpenlaneDataset(Dataset):
                  no_cls=False):
         self.pipeline = Compose(pipeline)
         self.data_root = data_root
-        self.img_dir = img_dir
+        self.img_dir = os.path.join(data_root, img_dir)
         self.img_suffix = img_suffix
         self.test_mode = test_mode
         self.metric = 'default'
@@ -152,8 +152,8 @@ class OpenlaneDataset(Dataset):
         with open(self.data_list, 'r') as anno_obj:
             all_ids = [s.strip() for s in anno_obj.readlines()]
             for k, id in enumerate(all_ids):
-                anno = {'filename': os.path.join(self.data_root, 'images', id + self.img_suffix),
-                        'anno_file': os.path.join(self.data_root, self.cache_dir, id + '.pkl')}
+                anno = {'filename': os.path.join(self.img_dir, id + self.img_suffix),
+                        'anno_file': os.path.join(self.cache_dir, id + '.pkl')}
                 self.img_infos.append(anno)
         print("after load annotation")
         print("find {} samples in {}.".format(len(self.img_infos), self.data_list))

@@ -11,7 +11,6 @@ from tqdm import tqdm
 import warnings
 
 import mmcv
-from mpl_toolkits.mplot3d import Axes3D
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt

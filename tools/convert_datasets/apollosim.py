@@ -127,7 +127,7 @@ def extract_data(ori_json, data_root, tar_path, test_mode=False, sample_step=1):
         print("path:", pickle_path)
         print("file:", pickle_file)
         w = open(pickle_file, 'wb')
-        pickle.dump({'filename':anno['filename'],
+        pickle.dump({'image_id':anno['filename'],
                      'gt_3dlanes':anno['gt_3dlanes'],
                      'gt_camera_pitch':anno['gt_camera_pitch'],
                      'gt_camera_height':anno['gt_camera_height']}, w)

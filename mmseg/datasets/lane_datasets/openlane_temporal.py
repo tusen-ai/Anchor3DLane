@@ -64,7 +64,7 @@ class OpenlaneMFDataset(OpenlaneDataset):
             for k, id in tqdm.tqdm(enumerate(all_ids)):
                 anno = {'filename': os.path.join(self.data_root, 'images', id + self.img_suffix),
                         'anno_file': os.path.join(self.data_root, self.cache_dir, id + '.pkl'), 
-                        'prev_file': os.path.join(self.prev_dir, id.replace('training/', '').replace('validation/', '')+'.pkl')}
+                        'prev_file': os.path.join(self.prev_dir, id + '.pkl')}
                 self.img_infos.append(anno)
         print("after load annotation")
         print("found {} samples in total".format(len(self.img_infos)))

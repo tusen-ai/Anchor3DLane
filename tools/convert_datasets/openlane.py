@@ -295,7 +295,7 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, test_mode=False,
         mmcv.mkdir_or_exist(pickle_path)
         pickle_file = os.path.join(tar_path, '/'.join(anno['filename'].split('/')[-3:]).replace('.jpg', '.pkl'))
         w = open(pickle_file, 'wb')
-        pickle.dump({'filename':anno['filename'],
+        pickle.dump({'image_id':anno['filename'],
                      'gt_3dlanes':anno['gt_3dlanes'],
                      'gt_camera_extrinsic':anno['gt_camera_extrinsic'],
                      'gt_camera_intrinsic':anno['gt_camera_intrinsic']}, w)

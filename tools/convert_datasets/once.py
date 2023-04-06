@@ -115,7 +115,7 @@ def extract_data(anno_file, data_root, target_path, max_lanes=8, test_mode=False
         print("path:", pickle_path)
         print("file:", pickle_file)
         w = open(pickle_file, 'wb')
-        pickle.dump({'filename':anno['filename'],
+        pickle.dump({'image_id':anno['filename'],
                         'gt_3dlanes':anno['gt_3dlanes'],
                         'gt_camera_intrinsic':anno['gt_camera_intrinsic']}, w)
         w.close()

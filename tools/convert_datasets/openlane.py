@@ -154,7 +154,7 @@ def transform_annotation(anno, max_lanes=20, anchor_len=20, index_begin=5, ancho
 
     return new_anno
 
-def extract_data_with_smoothing(data_root, anno_file, tar_path, test_mode=False, sample_step=1, prune_vis=True, smooth=True):
+def extract_data_with_smoothing(data_root, anno_file, tar_path, max_lanes=20, test_mode=False, sample_step=1, prune_vis=True, smooth=True):
     anchor_y_steps = np.linspace(1, 200, 200 // sample_step)
     image_id  = 0
     old_annotations = {}
@@ -249,7 +249,7 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, test_mode=False,
                 
                 all_lanes.append(lane_results)
 
-            if len(all_lanes) == 0:
+            if len(all_lanes) == 0 or len(all_lanes) > max_lanes:
                 if test_mode:
                     old_annotations[image_id] = {'path': image_path,
                                     'gt_3dlanes': [],
@@ -284,7 +284,7 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, test_mode=False,
     print("total_len of old anno", len(old_annotations))
 
     for image_id, old_anno in old_annotations.items():
-        new_anno = transform_annotation(old_anno, anchor_len=200)
+        new_anno = transform_annotation(old_anno, max_lanes=max_lanes, anchor_len=200)
         anno = {}
         anno['filename'] = new_anno['path']
         anno['gt_3dlanes'] = new_anno['gt_3dlanes']

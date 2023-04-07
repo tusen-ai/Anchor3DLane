@@ -107,7 +107,7 @@ Anchor3DLane+ | 97.1 | 95.4 | 0.045 | 0.300 | 0.016 | 0.223 | [download](https:/
 Model | Backbone | F1 | Cate Acc | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Disk Link
 --- |:---:|:---:|:---:|:---:|:---:|:---:|:---:|---:
 Anchor3DLane | ResNet-18 | 53.1 | 90.0 | 0.300 | 0.311 | 0.103 | 0.139 | [download](https://pan.baidu.com/s/1doS4NzNdxjjuKLTazVvQFw?pwd=b7b5)
-Anchor3DLane | EfficientNet-B3 | 56.0 | 89.0 | 0.293 | 0.317 | 0.103 | 0.130 | To be added
+Anchor3DLane | EfficientNet-B3 | 56.0 | 89.0 | 0.293 | 0.317 | 0.103 | 0.130 | [download](https://pan.baidu.com/s/1NYTGmaXSKu28SvKi_-DdKA?pwd=8455)
 Anchor3DLane+ | ResNet-18 | 53.7 | 90.9 | 0.276 | 0.311 | 0.107 | 0.138 | [download](https://pan.baidu.com/s/1n1kzIWKCEY9VOBuyi5RU_g?pwd=ew8k)
 Anchor3DLane-T+ | ResNet-18 | 54.3 | 90.7 | 0.275 | 0.310 | 0.105 | 0.135 | [download](https://pan.baidu.com/s/1aEzaqONTa93xQlacQL_N8g?pwd=ymk2)
 
@@ -115,7 +115,7 @@ Anchor3DLane-T+ | ResNet-18 | 54.3 | 90.7 | 0.275 | 0.310 | 0.105 | 0.135 | [dow
 Model | Backbone | F1 | Precision | Recall | CD Error/m | Baidu Disk Link
 --- |:---:|:---:|:---:|:---:|:---:|---:
 Anchor3DLane | ResNet-18 | 74.44 | 80.50 | 69.23 | 0.064 | [download](https://pan.baidu.com/s/1-vjriECcWQrVCCb-iumR8w?pwd=8nrc)
-Anchor3DLane | EfficientNet-B3 | 75.02 | 83.22 | 68.29 | 0.064 | To be added
+Anchor3DLane | EfficientNet-B3 | 75.02 | 83.22 | 68.29 | 0.064 | [download](https://pan.baidu.com/s/1mvcHcwFOTX0pbyWdA0MiXw?pwd=y8k8)
 Anchor3DLane+ | ResNet-18 | 74.87 | 80.85 | 69.71 | 0.060 | [download](https://pan.baidu.com/s/1wNx1MY1fhLJJdYWT2P5JDA?pwd=q2xk)
 
 ## Testing
@@ -127,7 +127,7 @@ python tools/test.py [config] [checkpoint] --show-dir [output_dir] --show(option
 You can append `--show` to generate visualization results in the `output_dir/vis`.
 
 ## Training
-**1.** Download the pretrained weights of [ResNet-18](https://pan.baidu.com/s/1bahxlmC5EKHYL4vVt1pTlg?pwd=vjtx) and put it in `./pretrained/` directory.
+**1.** Download the pretrained weights from [Baidu Disk](https://pan.baidu.com/s/10DAbmKMwZJcktbrYjRBEHg?pwd=721u) and put them in `./pretrained/` directory.
 
 **2.** Modify the `work_dir` in the `[config]` file as your desired output directory.
 

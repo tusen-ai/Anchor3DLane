@@ -34,7 +34,7 @@ dataset_config = dict(
 )
 
 data = dict(
-    samples_per_gpu=16,
+    samples_per_gpu=8,  # 8 gpus
     workers_per_gpu=4,
     train=dict(
         type=dataset_type,
@@ -148,7 +148,6 @@ model = dict(
 )
 
 # trainig setting
-data = dict(samples_per_gpu=8)  # 8 gpus
 data_shuffle = True
 optimizer = dict(type='Adam', lr=2e-4)
 optimizer_config = dict()

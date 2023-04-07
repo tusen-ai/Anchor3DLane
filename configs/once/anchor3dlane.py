@@ -139,7 +139,6 @@ model = dict(
 )
 
 # training setting
-data = dict(samples_per_gpu=16)
 data_shuffle = True
 optimizer = dict(type='Adam', lr=1e-4)
 optimizer_config = dict()

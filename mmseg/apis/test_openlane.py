@@ -50,13 +50,13 @@ def test_openlane(model,
 
     pred_file = osp.join(out_dir, 'lane3d_prediction.json')
     print("testing model...")
-    # for batch_indices, data in tqdm.tqdm(zip(loader_indices, data_loader)):
-    #     with torch.no_grad():
-    #         outputs= model(return_loss=False, **data)
-    #         for output in outputs['proposals_list']:
-    #             result = postprocess(output, anchor_len=dataset.anchor_len)
-    #             results.append(result)
-    # dataset.format_results(results, pred_file)
+    for batch_indices, data in tqdm.tqdm(zip(loader_indices, data_loader)):
+        with torch.no_grad():
+            outputs= model(return_loss=False, **data)
+            for output in outputs['proposals_list']:
+                result = postprocess(output, anchor_len=dataset.anchor_len)
+                results.append(result)
+    dataset.format_results(results, pred_file)
 
     # evaluating
     if eval:

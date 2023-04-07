@@ -150,7 +150,7 @@ model = dict(
 # trainig setting
 data = dict(samples_per_gpu=8)  # 8 gpus
 data_shuffle = True
-optimizer = dict(type='Adam', lr=1e-4)
+optimizer = dict(type='Adam', lr=2e-4)
 optimizer_config = dict()
 
 # learning policy

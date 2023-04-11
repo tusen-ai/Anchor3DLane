@@ -81,6 +81,9 @@ python openlane.py [openlane_root] --generate
 
 **(optional) 3.** If you wish to run the multi-frame experiments, you need to download the cross-frame pose data processed by us from [Baidu Disk](https://pan.baidu.com/s/1fxwyLeueTQKg6iBhFeIAog?pwd=7qkx).
 
+We also provide the cross-frame pose extraction script at `tools/convert_dataset/openlane_temporal.py` to allow customized use. 
+You can fetch the raw pose data link at [Baidu Disk](https://pan.baidu.com/s/1bgLSgO9wiypOsjNjRKcJZA?pwd=69mh) or extract the raw pose data with tools provided in [save_pose()](https://github.com/fundamentalvision/BEVFormer/blob/master/tools/data_converter/waymo_converter.py#L353).
+
 ### ONCE-3DLane
 **1.** Refer to [ONCE-3DLane Dataset](https://github.com/once-3dlanes/once_3dlanes_benchmark) for data downloading and organize the data folder as mentioned above.
 

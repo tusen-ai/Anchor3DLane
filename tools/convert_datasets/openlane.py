@@ -200,6 +200,7 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, max_lanes=20, te
                 continue
 
             all_lanes = []
+            lane_cates = []
             for i, gt_lane_packed in enumerate(gt_lanes_packed):
                 lane_results = {}
                 # A GT lane can be either 2D or 3D
@@ -248,8 +249,9 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, max_lanes=20, te
                     lane_results['category'] = 20
                 
                 all_lanes.append(lane_results)
+                lane_cates.append(lane_results['category'])
 
-            if len(all_lanes) == 0 or len(all_lanes) > max_lanes:
+            if len(all_lanes) == 0 or len(all_lanes) > max_lanes or max(lane_cates) > 20:
                 if test_mode:
                     old_annotations[image_id] = {'path': image_path,
                                     'gt_3dlanes': [],
@@ -342,6 +344,13 @@ def merge_annotations(anno_path, json_file):
         w.write(s+'\n')
     w.close()
 
+def generate_datalist(cache_path, data_list):
+    all_cache_file = glob.glob(os.path.join(cache_path, 'seg*', '*.pkl'))
+    with open(data_list, 'w') as w:
+        for item in all_cache_file:
+            file_name = '/'.join(item[:-4].split('/')[-3:])
+        w.write(file_name + '\n')
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process Openlane dataset')
     parser.add_argument('data_root', help='root path of openlane dataset')
@@ -355,7 +364,11 @@ if __name__ == '__main__':
     elif args.generate:
         ori_json = os.path.join(args.data_root, 'data_splits', 'training.json')
         tar_path = os.path.join(args.data_root, 'cache_dense')
+        data_list_path = os.path.join(args.data_root, 'data_lists')
+        os.makedirs(data_list_path, exist_ok=True)
         extract_data_with_smoothing(args.data_root, ori_json, tar_path=tar_path, test_mode=False)
+        generate_datalist(os.path.join(tar_path, 'training'), os.path.join(data_list_path, 'training.txt'))
         ori_json = os.path.join(args.data_root, 'data_splits', 'validation.json')
         tar_path = os.path.join(args.data_root, 'cache_dense')
         extract_data_with_smoothing(args.data_root, ori_json, tar_path=tar_path, test_mode=True)
+        generate_datalist(os.path.join(tar_path, 'validation'), os.path.join(data_list_path, 'validation.txt'))

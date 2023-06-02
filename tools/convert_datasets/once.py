@@ -164,6 +164,17 @@ def merge_annotations(anno_path, json_file):
         w.write(s+'\n')
     w.close()
 
+def generate_datalist(cache_path, data_list, annotation):
+    all_cache_file = glob.glob(os.path.join(cache_path, '*', 'cam01', '*.pkl'))
+    select_files = []
+    with open(annotation, 'r') as r:
+        select_files = [json.loads(s)['filename'] for s in r.readlines()]
+    with open(data_list, 'w') as w:
+        for item in all_cache_file:
+            file_name = '/'.join(item[:-4].split('/')[-3:])
+            if file_name in select_files:
+                w.write(file_name+'.jpg' + '\n')
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process ONCE-3DLane dataset')
     parser.add_argument('data_root', help='root path of once dataset')
@@ -177,6 +188,10 @@ if __name__ == '__main__':
     elif args.generate:
         tar_path = os.path.join(args.data_root, 'cache_dense')
         anno_file = os.path.join(args.data_root, 'data_splits/train.json')
+        data_list_path = os.path.join(args.data_root, 'data_lists')
+        mmcv.mkdir_or_exist(data_list_path, exist_ok=True)
         extract_data(anno_file, args.data_root, tar_path, test_mode=False)
+        generate_datalist(tar_path, os.path.join(data_list_path, 'train.txt', anno_file))
         anno_file = os.path.join(args.data_root, 'data_splits/val.json')
         extract_data(anno_file, args.data_root, tar_path, test_mode=True)
+        generate_datalist(tar_path, os.path.join(data_list_path, 'val.txt', anno_file))

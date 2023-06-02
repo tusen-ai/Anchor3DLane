@@ -5,6 +5,14 @@ This repo is the official PyTorch implementation for paper:
 
 ![pipeline](images/pipeline.png)
 In this paper, we deﬁne 3D lane anchors in the 3D space and propose a BEV-free method named Anchor3DLane to predict 3D lanes directly from FV representations. 3D lane anchors are projected to the FV features to extract their features which contain both good structural and context information to make accurate predictions. We further extend Anchor3DLane to the multi-frame setting to incorporate temporal information for performance improvement.
+
+## TODO List
+- [ ] Release the checkpoints on the latest version of OpenLane dataset.
+
+
+## Update
+- [2023/06/02] We have added the code to generate data lists in the data conversion tools.
+
 ## Installation
 ---
 
@@ -37,29 +45,32 @@ The data folders are organized as follows:
 ```
 ├── data/
 |   └── Apollosim
-|       └── data_splits
+|       └── data_splits  
 |           └── standard
 |               └── train.json
 |               └── test.json
 |           └── ...
 |       └── data_lists/...
 |       └── images/...
-|       └── cache_dense/...
+|       └── cache_dense/...  # processed lane annotations
 |   └── OpenLane
-|       └── data_splits/...
-|       └── data_lists/...
+|       └── data_splits/...  
+|       └── data_lists/...   # list of training/testing data
 |       └── images/...
-|       └── lane3d_1000/...
-|       └── cache_dense/...
-|       └── prev_data_release/...
+|       └── lane3d_1000/...  # original lane annotations
+|       └── cache_dense/...  
+|       └── prev_data_release/...  # temporal poses
 |   └── ONCE/
-|       └── raw_data/
-|           └── cam01/...
-|       └── annotations/
+|       └── raw_data/  # camera images
+|       └── annotations/  # original lane annotations
 |           └── train/...
 |           └── val/...
-|       └── ...
+|       └── data_splits/...  
+|       └── data_lists/... 
+|       └── cache_dense/
 ```
+Note: For the data_lists files, you can generate it by running our data conversion tools as mentioned below. We also provide the  data lists we used in the `data/` folder of this repo.
+
 ### ApolloSim
 **1.** Download dataset from [ApolloSim Dataset](https://github.com/yuliangguo/3D_Lane_Synthetic_Dataset) and organize the data folder as mentioned above.
 
@@ -105,6 +116,7 @@ Model | F1 | AP | x error close/m | x error far/m | z error close/m | z error fa
 Anchor3DLane | 95.6 | 97.2 | 0.052 | 0.306 | 0.015 | 0.223 | [download](https://pan.baidu.com/s/1HPYxsNNSOO5CY7-RwAt9cw?pwd=bqvy)
 Anchor3DLane+ | 97.1 | 95.4 | 0.045 | 0.300 | 0.016 | 0.223 | [download](https://pan.baidu.com/s/1f4Ssts_cUU7kGtXUyRulLA?pwd=pfe5)
 
+
 ### OpenLane
 
 Model | Backbone | F1 | Cate Acc | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Disk Link
@@ -113,6 +125,10 @@ Anchor3DLane | ResNet-18 | 53.1 | 90.0 | 0.300 | 0.311 | 0.103 | 0.139 | [downlo
 Anchor3DLane | EfficientNet-B3 | 56.0 | 89.0 | 0.293 | 0.317 | 0.103 | 0.130 | [download](https://pan.baidu.com/s/1NYTGmaXSKu28SvKi_-DdKA?pwd=8455)
 Anchor3DLane+ | ResNet-18 | 53.7 | 90.9 | 0.276 | 0.311 | 0.107 | 0.138 | [download](https://pan.baidu.com/s/1n1kzIWKCEY9VOBuyi5RU_g?pwd=ew8k)
 Anchor3DLane-T+ | ResNet-18 | 54.3 | 90.7 | 0.275 | 0.310 | 0.105 | 0.135 | [download](https://pan.baidu.com/s/1aEzaqONTa93xQlacQL_N8g?pwd=ymk2)
+
+Note: We use an earlier version of the Openlane dataset in our paper, whose annotations are significantly inconsistent in lane points' coordinates with the latest version as mentioned in [this issue](https://github.com/OpenDriveLab/OpenLane/issues/59).
+Thus, it is normal if you cannot obtain the performances reported in our paper by testing the checkpoints we provided on the latest OpenLane validation set. But you can still reproduce the performances by training on the training set of the latest version.
+Meanwhile, we will also release checkpoints trained on the latest dataset for testing recently.
 
 ### ONCE-3DLane
 Model | Backbone | F1 | Precision | Recall | CD Error/m | Baidu Disk Link

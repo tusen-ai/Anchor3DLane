@@ -1,6 +1,7 @@
 import os
 import json
 import cv2
+import glob
 from mmseg.datasets.tools.utils import *
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
@@ -176,6 +177,18 @@ def transform_annotation(anno, max_lanes=7, anchor_len=200, begin_idx=5):
 
     return new_anno
 
+def generate_datalist(cache_path, data_list, annotation):
+    all_cache_file = glob.glob(os.path.join(cache_path, '*', '*.pkl'))
+    select_files = []
+    with open(annotation, 'r') as f:
+        select_files = [json.loads(s)['raw_file'] for s in r.readlines()]
+    with open(data_list, 'w') as w:
+        for item in all_cache_file:
+            id = '/'.join(item[:-4].split('/')[-2:])
+            file_name = 'images/'+id+'.jpg'
+            if file_name in select_files:
+                w.write(file_name + '\n')
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process Openlane dataset')
     parser.add_argument('data_root', help='root path of openlane dataset')
@@ -184,6 +197,10 @@ if __name__ == '__main__':
     for s in split:
         tar_path = os.path.join(args.data_root, 'cache_dense')
         ori_json = os.path.join(args.data_root, 'data_splits/{}/train.json'.format(s))
+        data_list_path = os.path.join(args.data_root, 'data_lists/{}'.format(s))
+        mmcv.mkdir_or_exist(data_list_path)
         extract_data(ori_json, args.data_root, tar_path, False)
+        generate_datalist(tar_path, os.path.join(data_list_path, 'train.txt'), ori_json)
         ori_json = os.path.join(args.data_root, 'data_splits/{}/test.json'.format(s))
         extract_data(ori_json, args.data_root, tar_path, True)
+        generate_datalist(tar_path, os.path.join(data_list_path, 'test.txt'), ori_json)

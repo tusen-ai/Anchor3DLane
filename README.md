@@ -8,10 +8,12 @@ In this paper, we deﬁne 3D lane anchors in the 3D space and propose a BEV-free
 
 ## TODO List
 - [ ] Release the checkpoints on the latest version of OpenLane dataset.
+- [ ] Support generating predictions using one's own data.
 
 
 ## Update
 - [2023/06/02] We have added the code to generate data lists in the data conversion tools.
+- [2023/06/15] We have supported testing with multiple GPUs.
 
 ## Installation
 ---
@@ -145,6 +147,13 @@ python tools/test.py [config] [checkpoint] --show-dir [output_dir] --show(option
 ```
 You can append `--show` to generate visualization results in the `output_dir/vis`.
 
+For multi-gpu testing, run the following command:
+```
+bash tools/dist_test.sh [config] [checkpoint] [num_gpu] --show-dir [output_dir] --show(optional)
+or
+bash tools/slurm_test.sh [PARTITION] [JOB_NAME] [config] [checkpoint] --show-dir [output_dir] --show(optional)
+```
+
 ## Training
 **1.** Download the pretrained weights from [Baidu Disk](https://pan.baidu.com/s/10DAbmKMwZJcktbrYjRBEHg?pwd=721u) and put them in `./pretrained/` directory.
 
@@ -160,7 +169,7 @@ python tools/train.py [config]
 ```
 bash tools/dist_train.sh [config] [num_gpu] 
 or
-bash slurm_train.sh [PARTITION] [JOB_NAME] [config]
+bash tools/slurm_train.sh [PARTITION] [JOB_NAME] [config]
 ```
 
 ## Visualization

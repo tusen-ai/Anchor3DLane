@@ -207,7 +207,26 @@ def main():
              args.show,
              args.show_dir)
     else:
-        raise Exception("Not implemented yet")
+        if cfg.data.test.type.startswith('Openlane') or cfg.data.test.type.startswith('Waymo'):
+            from mmseg.apis.test_openlane import test_openlane_multigpu as test_multigpu
+        elif cfg.data.test.type.startswith('ONCE'):
+            from mmseg.apis.test_once import test_once_multigpu as test_multigpu
+        elif cfg.data.test.type.startswith('APOLLOSIM'):
+            from mmseg.apis.test_apollosim import test_apollosim_multigpu as test_multigpu
+        else:
+            raise Exception("No dataset", cfg.data.test.type)
+        
+        model = build_ddp(
+            model,
+            cfg.device,
+            device_ids=[int(os.environ['LOCAL_RANK'])],
+            broadcast_buffers=False)
+        
+        test_multigpu(model,
+                      data_loader,
+                      args.eval,
+                      args.show,
+                      args.show_dir)
 
 
 if __name__ == '__main__':

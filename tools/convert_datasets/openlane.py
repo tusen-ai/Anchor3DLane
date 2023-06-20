@@ -349,7 +349,7 @@ def generate_datalist(cache_path, data_list):
     with open(data_list, 'w') as w:
         for item in all_cache_file:
             file_name = '/'.join(item[:-4].split('/')[-3:])
-        w.write(file_name + '\n')
+            w.write(file_name + '\n')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process Openlane dataset')

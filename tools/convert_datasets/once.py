@@ -129,6 +129,8 @@ def transform_annotation(anno, max_lanes=8, anchor_len=50, test_mode=False):
     lanes3d[:, 0] = 1
 
     for lane_pos, (gt_3dlane, cate) in enumerate(zip(gt_3dlanes, categories)):
+        if lane_pos >= 8 and test_mode:
+            break
         gt_3dlane = gt_3dlanes[lane_pos]
 
         lower, upper = gt_3dlane[0][1], gt_3dlane[-1][1]

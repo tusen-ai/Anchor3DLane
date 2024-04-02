@@ -7,7 +7,49 @@ dataset_type = 'OpenlaneDataset'
 data_root = './data/OpenLane'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
-input_size = (360, 480)
+input_size = (720, 960)
+
+train_pipeline = [
+    dict(type='LoadImageFromFile'),
+    dict(type='Resize', img_scale=(input_size[1], input_size[0]), keep_ratio=False),
+    dict(type='Normalize', **img_norm_cfg),
+    dict(type='MaskGenerate', input_size=input_size),
+    dict(type='LaneFormat'),
+    dict(type='Collect', keys=['img', 'img_metas','gt_3dlanes', 'gt_project_matrix', 'mask']),
+]
+
+test_pipeline = [
+    dict(type='LoadImageFromFile'),
+    dict(type='Resize', img_scale=(input_size[1], input_size[0]), keep_ratio=False),
+    dict(type='Normalize', **img_norm_cfg),
+    dict(type='MaskGenerate', input_size=input_size),
+    dict(type='LaneFormat'),
+    dict(type='Collect', keys=['img', 'img_metas', 'gt_3dlanes', 'gt_project_matrix', 'mask']),
+]
+
+dataset_config = dict(
+    max_lanes = 25,
+    input_size = input_size,
+)
+
+data = dict(
+    samples_per_gpu=16,
+    workers_per_gpu=4,
+    train=dict(
+        type=dataset_type,
+        data_root=data_root,
+        data_list='training.txt',
+        dataset_config=dataset_config,
+        y_steps=anchor_y_steps,
+        pipeline=train_pipeline),
+    test=dict(
+        type=dataset_type,
+        data_root=data_root,
+        y_steps=anchor_y_steps,
+        data_list='validation.txt',
+        dataset_config=dataset_config, 
+        test_mode=True,
+        pipeline=test_pipeline))
 
 train_pipeline = [
     dict(type='LoadImageFromFile'),
@@ -54,17 +96,20 @@ data = dict(
 
 # model setting
 model = dict(
-    type = 'Anchor3DLane',
+    type = 'Anchor3DLaneDeform',
     backbone=dict(
-    type='ResNetV1c',
-    depth=18,
-    num_stages=4,
-    out_indices=(0, 1, 2, 3),
-    dilations=(1, 1, 2, 4),
-    strides=(1, 2, 1, 1),
-    with_cp=False,
-    style='pytorch'),
-    pretrained = 'pretrained/resnet18_v1c-b5776b93.pth',
+        type='ResNetV1c',
+        depth=50,
+        num_stages=4,
+        out_indices=(0, 1, 2, 3),
+        dilations=(1, 1, 2, 4),
+        strides=(1, 2, 1, 1),
+        with_cp=False,
+        style='pytorch',
+        dcn=dict(type='DCNv2', deform_groups=1, fallback_on_stride=False),
+        stage_with_dcn=(False, False, True, True),
+    ),
+    pretrained = 'pretrained/resnet50_v1c-2cccc1ad.pth',
     y_steps = anchor_y_steps,
     feat_y_steps = feat_y_steps,
     anchor_cfg = dict(pitches = [5, 2, 1, 0, -1, -2, -5],
@@ -73,10 +118,10 @@ model = dict(
     db_cfg = dict(
         org_h = 1280,
         org_w = 1920,
-        resize_h = 360,
-        resize_w = 480,
-        ipm_h = 208,
-        ipm_w = 128,
+        resize_h = 720,
+        resize_w = 960,
+        ipm_h = 416,
+        ipm_w = 256,
         pitch = 3,
         cam_height = 1.55,
         crop_y = 0,
@@ -88,8 +133,9 @@ model = dict(
     drop_out=0.,
     num_heads = 2,
     dim_feedforward = 128,
+    backbone_dim = 2048,
     pre_norm = False,
-    feat_size = (45, 60),
+    feat_size = (90, 120),
     num_category = 21,
     iter_reg = 1,
     loss_lane = dict(
@@ -131,7 +177,7 @@ model = dict(
     test_cfg = dict(
         nms_thres = 2,
         conf_threshold = 0.2,
-        test_conf = 0.32,
+        test_conf = 0.3,
         refine_vis = True,
         vis_thresh = 0.5
     )
@@ -139,7 +185,7 @@ model = dict(
 
 # training setting
 data_shuffle = True
-optimizer = dict(type='Adam', lr=1e-4)
+optimizer = dict(type='Adam', lr=2e-4)
 optimizer_config = dict()
 
 # learning policy
@@ -161,4 +207,4 @@ resume_from = None
 workflow = [('train', 10000000)]
 cudnn_benchmark = True
 load_from = None
-work_dir = 'output/openlane/anchor3dlane_2stage'
+work_dir = 'output/openlane/anchor3dlane_r50x2_2stage'

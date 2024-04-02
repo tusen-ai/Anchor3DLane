@@ -26,18 +26,18 @@ class PositionEmbeddingSine(nn.Module):
             scale = 2 * math.pi
         self.scale = scale  # 2pi
 
-    def forward(self, x, mask):
+    def forward(self, x, mask=None):
         # x = tensor_list.tensors
         # mask = tensor_list.mask  # the image location which is padded with 0 is set to be 1 at the corresponding mask location
         # print(x.shape)  # b 128 8 8
         # print(mask.shape)  # b 8 8
         # exit()
-        assert mask is not None
+        if mask is None:
+            mask = torch.zeros((x.size(0), x.size(2), x.size(3)), device=x.device, dtype=torch.bool)
         not_mask = ~mask  # image 0 -> 0 [B, H, W]
 
         y_embed = not_mask.cumsum(1, dtype=torch.float32)  # 2 28 38
         x_embed = not_mask.cumsum(2, dtype=torch.float32)  # 2 28 38
-
 
         if self.normalize:
             eps = 1e-6

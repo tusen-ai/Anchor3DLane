@@ -57,6 +57,7 @@ class LaneLoss(nn.Module):
         for idx, ((proposals, anchors), target) in enumerate(zip(proposals_list, targets)):
             # Filter lanes that do not exist (confidence == 0)
             num_clses = proposals.shape[1] - 5 - self.anchor_len * 3
+            #category has to be bigger than zero
             target = target[target[:, 1] > 0]   # [N, 605]
             if len(target) == 0:
                 # If there are no targets, all proposals have to be negatives (i.e., 0 confidence)

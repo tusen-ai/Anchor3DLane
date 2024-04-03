@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-from jarvis.eload import load_json
+# from jarvis.eload import load_json
 from munkres import Munkres
 import os
 from shapely.geometry import LineString
@@ -9,6 +9,11 @@ import json
 import glob
 import tqdm
 from prettytable import PrettyTable
+
+def load_json(file_path):
+    with open(file_path) as f:
+        target_dict = json.load(f)
+    return target_dict
 
 
 class Bev_Projector:
@@ -177,7 +182,7 @@ class LaneEvalOneFile:
         gt_num = len(gt_lanes3d)
         pred_lanes3d = pred_json['lanes']
         pred_lanes3d = [pred_lanespec3d["points"] for pred_lanespec3d in pred_lanes3d if len(pred_lanespec3d) >= 2
-                        and np.float(pred_lanespec3d["score"]) > store_spec]
+                        and float(pred_lanespec3d["score"]) > store_spec]
         pred_num = len(pred_lanes3d)
         return gt_lanes3d, gt_num, pred_lanes3d, pred_num
 

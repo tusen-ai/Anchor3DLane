@@ -131,7 +131,7 @@ model = dict(
     test_cfg = dict(
         nms_thres = 2,
         conf_threshold = 0.2,
-        test_conf = 0.32,
+        test_conf = 0.38,
         refine_vis = True,
         vis_thresh = 0.5
     )
@@ -139,7 +139,7 @@ model = dict(
 
 # training setting
 data_shuffle = True
-optimizer = dict(type='Adam', lr=1e-4)
+optimizer = dict(type='Adam', lr=2e-4)
 optimizer_config = dict()
 
 # learning policy
@@ -160,5 +160,5 @@ load_from = None
 resume_from = None
 workflow = [('train', 10000000)]
 cudnn_benchmark = True
-load_from = None
+load_from = 'pretrained/openlane_anchor3dlane.pth'
 work_dir = 'output/openlane/anchor3dlane_2stage'

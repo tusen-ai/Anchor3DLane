@@ -12,6 +12,7 @@ import torch
 import tracemalloc
 import copy
 
+
 import mmcv
 from mmcv.cnn.utils import revert_sync_batchnorm
 from mmcv.runner import (get_dist_info, init_dist, load_checkpoint, HOOKS, DistSamplerSeedHook,
@@ -28,7 +29,7 @@ from mmseg.utils import build_ddp, build_dp, get_device, setup_multi_processes, 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a segmentor')
-    parser.add_argument('config', help='train config file path')
+    parser.add_argument('--config', default= 'configs/openlane/anchor3dlane.py', help='train config file path')
     parser.add_argument('--work-dir', help='the dir to save logs and models')
     parser.add_argument(
         '--load-from', help='the checkpoint file to load weights from')
@@ -241,7 +242,8 @@ def train(model,
     runner.run(data_loaders, cfg.workflow)
 
 def main():
-    args = parse_args()
+    args = parse_args() 
+    
 
     cfg = Config.fromfile(args.config)
     if args.cfg_options is not None:
@@ -328,6 +330,7 @@ def main():
     meta['exp_name'] = osp.basename(args.config)
 
     model = build_lanedetector(cfg.model)
+    print('MODEL: ', model)
     model.init_weights()
 
     # SyncBN is not support for DP

@@ -82,10 +82,10 @@ class LaneVis(object):
         P_gt = np.matmul(self.H_crop, gt_camera_intrinsics)
         img = cv2.imread(img_path)
         img = cv2.warpPerspective(img, self.H_crop, (self.resize_w, self.resize_h))
-        img = img.astype(np.float) / 255
+        img = img.astype(float) / 255
 
         raw_img = cv2.imread(img_path)
-        raw_img = raw_img.astype(np.float) / 255
+        raw_img = raw_img.astype(float) / 255
 
         gt_visibility_mat = np.zeros((cnt_gt, 100))
         pred_visibility_mat = np.zeros((cnt_pred, 100))

@@ -1,0 +1,8 @@
+data/
+output/
+.venv/
+.vscode/
+.idea/
+data.pickle
+test.onnx
+async/

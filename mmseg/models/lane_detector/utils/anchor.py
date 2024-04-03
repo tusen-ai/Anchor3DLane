@@ -54,6 +54,7 @@ class AnchorGenerator(object):
         yaw = yaw * math.pi / 180.
         anchor[2] = 0
         anchor[3] = 1
+        #self.y_steps * math.tan(yaw) is the offcet of x for each step,
         anchor[5:5+self.anchor_len] = start_x + self.y_steps * math.tan(yaw)
         anchor[5+self.anchor_len:5+self.anchor_len*2] = start_z + self.y_steps * math.tan(pitch)
         anchor_vis = np.logical_and(anchor[5:5+self.anchor_len] > self.x_min, anchor[5:5+self.anchor_len] < self.x_max)

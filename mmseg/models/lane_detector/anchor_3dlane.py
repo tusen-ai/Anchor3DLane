@@ -96,7 +96,7 @@ class Anchor3DLane(BaseModule):
         self.anchor_feat_len = len(feat_y_steps)
         self.anchor_generator = AnchorGenerator(anchor_cfg, x_min=self.x_min, x_max=self.x_max, y_max=int(self.y_steps[-1]),
                                                 norm=(self.x_norm, self.y_norm, self.z_norm))
-        dense_anchors = self.anchor_generator.generate_anchors()  # [N, 65]
+        dense_anchors = self.anchor_generator.generate_anchors()  # [~4K, 305] ~(45*yaws*pitch)
         anchor_inds = self.anchor_generator.y_steps   # [100]
         self.anchors = self.sample_from_dense_anchors(self.y_steps, anchor_inds, dense_anchors)
         self.feat_anchors = self.sample_from_dense_anchors(self.feat_y_steps, anchor_inds, dense_anchors)
@@ -155,6 +155,7 @@ class Anchor3DLane(BaseModule):
         
 
     def sample_from_dense_anchors(self, sample_steps, dense_inds, dense_anchors):
+        # self.y_steps, anchor_inds, desne_anchors
         sample_index = np.isin(dense_inds, sample_steps)
         anchor_len = len(sample_steps)
         dense_anchor_len = len(sample_index)
@@ -212,7 +213,7 @@ class Anchor3DLane(BaseModule):
             batch_zs = zs
 
         batch_us, batch_vs = self.projection_transform(h_g2feats, batch_xs, batch_ys, batch_zs)
-        batch_us = (batch_us / self.feat_size[1] - 0.5) * 2
+        batch_us = (batch_us / self.feat_size[1] - 0.5) * 2 #Scaling the 2d anchors so that we can project it to the feature space 
         batch_vs = (batch_vs / self.feat_size[0] - 0.5) * 2
 
         batch_grid = torch.stack([batch_us, batch_vs], dim=-1)  #
@@ -225,14 +226,16 @@ class Anchor3DLane(BaseModule):
 
     def feature_extractor(self, img, mask):
         output = self.backbone(img)
+
         if self.neck is not None:
             output = self.neck(output)
             feat = output[0]
         else:
             feat = output[-1]
+            
         feat = self.input_proj(feat)
-
         mask_interp = F.interpolate(mask[:, 0, :, :][None], size=feat.shape[-2:]).to(torch.bool)[0]  # [B, h, w]
+        
         pos = self.position_embedding(feat, mask_interp)   # [B, 32, h, w]
         
         # transformer forward
@@ -291,7 +294,7 @@ class Anchor3DLane(BaseModule):
         batch_size = img.shape[0]
         trans_feat = self.feature_extractor(img, mask)
 
-        # anchor
+        # anchor 
         anchor_feat = self.anchor_projection(trans_feat)
         project_matrixes = self.obtain_projection_matrix(gt_project_matrix, self.feat_size)
         project_matrixes = torch.stack(project_matrixes, dim=0)   # [B, 3, 4]
@@ -384,7 +387,7 @@ class Anchor3DLane(BaseModule):
 
         return output
 
-    def forward(self, img, img_metas, mask=None, return_loss=True, **kwargs):
+    def forward(self, img, mask, img_metas, gt_3dlanes=None, gt_project_matrix=None, **kwargs):
         """Calls either :func:`forward_train` or :func:`forward_test` depending
         on whether ``return_loss`` is ``True``.
 
@@ -394,10 +397,16 @@ class Anchor3DLane(BaseModule):
         should be double nested (i.e.  List[Tensor], List[List[dict]]), with
         the outer list indicating test time augmentations.
         """
-        if return_loss:
-            return self.forward_train(img, mask, img_metas, **kwargs)
-        else:
-            return self.forward_test(img, mask, img_metas, **kwargs)
+        
+        gt_project_matrix = gt_project_matrix.squeeze(1)
+        output, output_aux = self.encoder_decoder(img, mask, gt_project_matrix, **kwargs)
+        return output
+        # losses, other_vars = self.loss(output, gt_3dlanes, output_aux)
+        # return losses, other_vars
+        # if return_loss:
+        #     return self.forward_train(img, mask, img_metas, **kwargs)
+        # else:
+        #     return self.forward_test(img, mask, img_metas, **kwargs)
     
 
     @force_fp32()

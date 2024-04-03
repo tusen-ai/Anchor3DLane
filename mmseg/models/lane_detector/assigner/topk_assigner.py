@@ -28,8 +28,10 @@ class TopkAssigner(object):
         valid_targets = targets[targets[:, 1] > 0]
         num_proposals = proposals.shape[0]   # [Np, 35], [pos_score, neg_score, start_y, end_y, length, x_coord, z_coord, vis]
         num_targets = valid_targets.shape[0]   # [Nt, 35], [1, 0, start_y, end_y, length, x_coord, z_coord, vis]
-
-        proposals = torch.repeat_interleave(proposals, num_targets, dim=0)  # [Np * Nt, 35], [a, b] -> [a, a, b, b]
+        if torch.is_tensor(num_targets):
+            proposals = torch.repeat_interleave(proposals.cuda(), num_targets.cuda(), dim=0)  # [Np * Nt, 35], [a, b] -> [a, a, b, b]
+        else:
+            proposals = torch.repeat_interleave(proposals, num_targets, dim=0)
         valid_targets = torch.cat(num_proposals * [valid_targets])   # [Nt * Np, 10, 35], [c, d] -> [c, d, c, d]
 
         if self.metric == 'Euclidean':

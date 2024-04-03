@@ -24,7 +24,7 @@ test_pipeline = [
     dict(type='Normalize', **img_norm_cfg),
     dict(type='MaskGenerate', input_size=input_size),
     dict(type='LaneFormat'),
-    dict(type='Collect', keys=['img', 'img_metas', 'gt_3dlanes', 'gt_project_matrix', 'mask']),
+    # dict(type='Collect', keys=['img', 'img_metas', 'gt_3dlanes', 'gt_project_matrix', 'mask']),
 ]
 
 dataset_config = dict(
@@ -63,7 +63,7 @@ model = dict(
     strides=(1, 2, 1, 1),
     with_cp=False,
     style='pytorch'),
-    pretrained = 'pretrained/resnet18_v1c-b5776b93.pth',
+    pretrained = None,
     y_steps = anchor_y_steps,
     feat_y_steps = feat_y_steps,
     anchor_cfg = dict(pitches = [5, 2, 1, 0, -1, -2, -5],
@@ -125,14 +125,14 @@ optimizer_config = dict()
 
 # learning policy
 lr_config = dict(policy='step', step=[50000,], by_epoch=False)
-runner = dict(type='IterBasedRunner', max_iters=60000)
-checkpoint_config = dict(by_epoch=False, interval=5000)
+runner = dict(type='IterBasedRunner', max_iters=80000)
+checkpoint_config = dict(by_epoch=False, interval=10000)
 
 log_config = dict(
     interval=10,
     hooks=[
         dict(type='TextLoggerHook', by_epoch=False),
-        dict(type='TensorboardLoggerHook')
+        # dict(type='NeptuneLoggerHook')
     ])
 # yapf:enable
 dist_params = dict(backend='nccl')

@@ -81,7 +81,7 @@ class MaskGenerate(object):
         self.input_size = input_size 
 
     def __call__(self, results):
-        mask  = np.ones((self.input_size[0], self.input_size[1]), dtype=np.bool)
+        mask  = np.ones((self.input_size[0], self.input_size[1]), dtype=bool)
         mask = np.logical_not(mask)
         results['mask'] = mask
         return results

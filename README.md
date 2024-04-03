@@ -6,10 +6,14 @@ This repo is the official PyTorch implementation for paper:
 ![pipeline](images/pipeline.png)
 In this paper, we deﬁne 3D lane anchors in the 3D space and propose a BEV-free method named Anchor3DLane to predict 3D lanes directly from FV representations. 3D lane anchors are projected to the FV features to extract their features which contain both good structural and context information to make accurate predictions. We further extend Anchor3DLane to the multi-frame setting to incorporate temporal information for performance improvement.
 
+## TODO List
+- [ ] Release the checkpoints on the latest version of OpenLane dataset.
+- [ ] Support generating predictions using one's own data.
+
+
 ## Update
 - [2023/06/02] We have added the code to generate data lists in the data conversion tools.
 - [2023/06/15] We have supported testing with multiple GPUs.
-- [2024/04/02] We have released checkpoints of the single-frame Anchor3DLane on the latest version of Openlane dataset.
 
 ## Installation
 ---
@@ -34,11 +38,6 @@ Refer to [ONCE-3dlane](https://github.com/once-3dlanes/once_3dlanes_benchmark/tr
 git clone https://github.com/tusen-ai/Anchor3DLane.git
 cd Anchor3DLane
 python setup.py develop
-```
-Compile multi-scale deformable attention:
-```
-cd mmseg/models/utils/ops
-sh make.sh
 ```
 
 This repo is implemented based on [open-mmlab mmsegmentation-v0.26.0](https://github.com/open-mmlab/mmsegmentation/tree/v0.26.0). Refer to [here](https://github.com/open-mmlab/mmsegmentation/blob/v0.26.0/docs/en/get_started.md#installation) for more detailed information of installation.
@@ -93,10 +92,10 @@ python openlane.py [openlane_root] --merge
 python openlane.py [openlane_root] --generate
 ```
 
-**(optional) 3.** If you wish to run the multi-frame experiments, you need to download the cross-frame pose data processed by us from [Baidu Drive](https://pan.baidu.com/s/1fxwyLeueTQKg6iBhFeIAog?pwd=7qkx).
+**(optional) 3.** If you wish to run the multi-frame experiments, you need to download the cross-frame pose data processed by us from [Baidu Disk](https://pan.baidu.com/s/1fxwyLeueTQKg6iBhFeIAog?pwd=7qkx).
 
 We also provide the cross-frame pose extraction script at `tools/convert_dataset/openlane_temporal.py` to allow customized use. 
-You can fetch the raw pose data link at [Baidu Drive](https://pan.baidu.com/s/1bgLSgO9wiypOsjNjRKcJZA?pwd=69mh) or extract the raw pose data with tools provided in [save_pose()](https://github.com/fundamentalvision/BEVFormer/blob/master/tools/data_converter/waymo_converter.py#L353).
+You can fetch the raw pose data link at [Baidu Disk](https://pan.baidu.com/s/1bgLSgO9wiypOsjNjRKcJZA?pwd=69mh) or extract the raw pose data with tools provided in [save_pose()](https://github.com/fundamentalvision/BEVFormer/blob/master/tools/data_converter/waymo_converter.py#L353).
 
 ### ONCE-3DLane
 **1.** Refer to [ONCE-3DLane Dataset](https://github.com/once-3dlanes/once_3dlanes_benchmark) for data downloading and organize the data folder as mentioned above.
@@ -114,7 +113,7 @@ For OpenLane dataset, we additional provide weights for Anchor3DLane-T+(with mul
 
 ### ApolloSim
 
-Model | F1 | AP | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Drive Link
+Model | F1 | AP | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Disk Link
 --- |:---:|:---:|:---:|:---:|:---:|:---:|---:
 Anchor3DLane | 95.6 | 97.2 | 0.052 | 0.306 | 0.015 | 0.223 | [download](https://pan.baidu.com/s/1HPYxsNNSOO5CY7-RwAt9cw?pwd=bqvy)
 Anchor3DLane+ | 97.1 | 95.4 | 0.045 | 0.300 | 0.016 | 0.223 | [download](https://pan.baidu.com/s/1f4Ssts_cUU7kGtXUyRulLA?pwd=pfe5)
@@ -122,9 +121,7 @@ Anchor3DLane+ | 97.1 | 95.4 | 0.045 | 0.300 | 0.016 | 0.223 | [download](https:/
 
 ### OpenLane
 
-#### Results on OpenLane-v1.1.
-
-Model | Backbone | F1 | Cate Acc | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Drive Link
+Model | Backbone | F1 | Cate Acc | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Disk Link
 --- |:---:|:---:|:---:|:---:|:---:|:---:|:---:|---:
 Anchor3DLane | ResNet-18 | 53.1 | 90.0 | 0.300 | 0.311 | 0.103 | 0.139 | [download](https://pan.baidu.com/s/1doS4NzNdxjjuKLTazVvQFw?pwd=b7b5)
 Anchor3DLane | EfficientNet-B3 | 56.0 | 89.0 | 0.293 | 0.317 | 0.103 | 0.130 | [download](https://pan.baidu.com/s/1NYTGmaXSKu28SvKi_-DdKA?pwd=8455)
@@ -133,18 +130,10 @@ Anchor3DLane-T+ | ResNet-18 | 54.3 | 90.7 | 0.275 | 0.310 | 0.105 | 0.135 | [dow
 
 Note: We use an earlier version of the Openlane dataset in our paper, whose annotations are significantly inconsistent in lane points' coordinates with the latest version as mentioned in [this issue](https://github.com/OpenDriveLab/OpenLane/issues/59).
 Thus, it is normal if you cannot obtain the performances reported in our paper by testing the checkpoints we provided on the latest OpenLane validation set. But you can still reproduce the performances by training on the training set of the latest version.
-
-#### Results of Openlane-v1.2.
-We also provide checkpoints of single-frame settings on the latest Opanlane dataset for validation.
-
-Model | Backbone | F1 | Cate Acc | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Drive Link
---- |:---:|:---:|:---:|:---:|:---:|:---:|:---:|---:
-Anchor3DLane | ResNet-18 | 53.1 | 88.9 | 0.269 | 0.293 | 0.079 | 0.111 | [download](https://pan.baidu.com/s/14JmWTcX6UgImS90o9cq9fg?pwd=mhff)
-Anchor3DLane+ | ResNet-18 | 53.6 | 89.8 | 0.272 | 0.292 | 0.085 | 0.116 | [download](https://pan.baidu.com/s/1Hu0P5OPuvRJnLQjHW_-PgA?pwd=t6ba)
-Anchor3DLane+ | ResNet-50 | 57.5 | 91.9 | 0.229 | 0.243 | 0.079 | 0.106 | [download](https://pan.baidu.com/s/14LID1kvzyllLDnIblaXXTw?pwd=yz2b)
+Meanwhile, we will also release checkpoints trained on the latest dataset for testing recently.
 
 ### ONCE-3DLane
-Model | Backbone | F1 | Precision | Recall | CD Error/m | Baidu Drive Link
+Model | Backbone | F1 | Precision | Recall | CD Error/m | Baidu Disk Link
 --- |:---:|:---:|:---:|:---:|:---:|---:
 Anchor3DLane | ResNet-18 | 74.44 | 80.50 | 69.23 | 0.064 | [download](https://pan.baidu.com/s/1-vjriECcWQrVCCb-iumR8w?pwd=8nrc)
 Anchor3DLane | EfficientNet-B3 | 75.02 | 83.22 | 68.29 | 0.064 | [download](https://pan.baidu.com/s/1mvcHcwFOTX0pbyWdA0MiXw?pwd=y8k8)
@@ -166,7 +155,7 @@ bash tools/slurm_test.sh [PARTITION] [JOB_NAME] [config] [checkpoint] --show-dir
 ```
 
 ## Training
-**1.** Download the pretrained weights from [Baidu Drive](https://pan.baidu.com/s/10DAbmKMwZJcktbrYjRBEHg?pwd=721u) and put them in `./pretrained/` directory.
+**1.** Download the pretrained weights from [Baidu Disk](https://pan.baidu.com/s/10DAbmKMwZJcktbrYjRBEHg?pwd=721u) and put them in `./pretrained/` directory.
 
 **2.** Modify the `work_dir` in the `[config]` file as your desired output directory.
 

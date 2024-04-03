@@ -63,7 +63,7 @@ class OpenlaneDataset(Dataset):
                  dataset_config=None,
                  y_steps = [  5,  10,  15,  20,  30,  40,  50,  60,  80,  100],
                  is_resample=True, 
-                 visibility=False,
+                visibility=False,
                  no_cls=False):
         self.pipeline = Compose(pipeline)
         self.data_root = data_root
@@ -113,7 +113,7 @@ class OpenlaneDataset(Dataset):
         x_max = self.top_view_region[1, 0]  # 10
         self.x_min = x_min  # -10
         self.x_max = x_max  # 10
-        self.anchor_y_steps = np.array(y_steps, dtype=np.float)
+        self.anchor_y_steps = np.array(y_steps, dtype=float)
         self.anchor_len = len(self.anchor_y_steps)
 
         self.y_min = self.top_view_region[2, 1]

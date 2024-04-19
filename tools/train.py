@@ -29,7 +29,7 @@ from mmseg.utils import build_ddp, build_dp, get_device, setup_multi_processes, 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a segmentor')
-    parser.add_argument('--config', default= 'configs/openlane/anchor3dlane.py', help='train config file path')
+    parser.add_argument('--config', default= 'configs/zod/anchor3dlane.py', help='train config file path')
     parser.add_argument('--work-dir', help='the dir to save logs and models')
     parser.add_argument(
         '--load-from', help='the checkpoint file to load weights from')

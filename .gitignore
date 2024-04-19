@@ -6,3 +6,4 @@ output/
 data.pickle
 test.onnx
 async/
+__pycache__/ 

@@ -1,28 +1,21 @@
-# --------------------------------------------------------
-# Source code for Anchor3DLane
-# Copyright (c) 2023 TuSimple
-# @Time    : 2023/04/05
-# @Author  : Shaofei Huang
-# nowherespyfly@gmail.com
-# --------------------------------------------------------
-
-
 from random import sample
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-import pdb
-import math
+import re 
+import os 
 
-import time
-import mmcv
+import neptune
 import numpy as np
 import torch
 import torch.distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.runner import BaseModule, auto_fp16, force_fp32
+from neptune.exceptions import NeptuneModelKeyAlreadyExistsError
 
+from configs.zod.anchor3dlane import model, checkpoint_config, work_dir,\
+    api_token, project, model_id, log_to_neptune, optimizer, runner, data
 from ..builder import build_loss, build_backbone, build_neck
 from .transformer import TransformerEncoderLayer, TransformerEncoder
 from .position_encoding import PositionEmbeddingSine
@@ -143,6 +136,41 @@ class Anchor3DLane(BaseModule):
 
         # build iterative regression layers
         self.build_iterreg_layers()
+        self.save_check_iter = checkpoint_config['interval']
+        self.iter = 0
+        self.output_dir = work_dir 
+        
+        if log_to_neptune:
+            self.neptune_logger = neptune.init_run(project=project, api_token=api_token)
+            run_id = self.neptune_logger["sys/id"].fetch()
+            try:
+                self.model = neptune.init_model(
+                    name="Basic Anchor3dLane model",
+                    key=model_id, 
+                    project=project, 
+                    api_token=api_token, # your credentials
+                )
+            except NeptuneModelKeyAlreadyExistsError:
+                pass
+            parameters = {"backbone_dim":backbone_dim, "iter_reg":iter_reg, "drop_out":drop_out, \
+                "anchor_feat_channel":anchor_feat_channels, "feat_size":feat_size, "x_norm":self.x_norm, "y_norm":self.y_norm, \
+                "z_norm":self.z_norm, "x_min":self.x_min, "x_max":self.x_max, "runner_type": runner['type'], "num_iters": runner['max_iters'], \
+                "batch_size": data["samples_per_gpu"]}
+            self.neptune_logger["model/parameters"] = parameters
+            self.model_version = neptune.init_model_version(
+            model=str(run_id[:2]+"-"+model_id),
+            project=project,
+            api_token=api_token, # your credentials
+        )
+            model_version_id = self.model_version["sys/id"].fetch()
+            self.model_version['model/config'].upload('configs/openlane/anchor3dlane.py')
+            self.model_version['model/parameters'] = parameters
+            self.model_version['model/parameters/run_id'] = run_id
+            self.neptune_logger["model/parameters/model_version_id"] = model_version_id
+        else:
+            self.neptune_logger = None
+            self.model_version = None
+
 
     def build_iterreg_layers(self):
         self.aux_loss = nn.ModuleList()
@@ -387,7 +415,7 @@ class Anchor3DLane(BaseModule):
 
         return output
 
-    def forward(self, img, mask, img_metas, gt_3dlanes=None, gt_project_matrix=None, **kwargs):
+    def forward(self, img, img_metas, mask=None, return_loss=True, **kwargs):
         """Calls either :func:`forward_train` or :func:`forward_test` depending
         on whether ``return_loss`` is ``True``.
 
@@ -397,17 +425,10 @@ class Anchor3DLane(BaseModule):
         should be double nested (i.e.  List[Tensor], List[List[dict]]), with
         the outer list indicating test time augmentations.
         """
-        
-        gt_project_matrix = gt_project_matrix.squeeze(1)
-        output, output_aux = self.encoder_decoder(img, mask, gt_project_matrix, **kwargs)
-        return output
-        # losses, other_vars = self.loss(output, gt_3dlanes, output_aux)
-        # return losses, other_vars
-        # if return_loss:
-        #     return self.forward_train(img, mask, img_metas, **kwargs)
-        # else:
-        #     return self.forward_test(img, mask, img_metas, **kwargs)
-    
+        if return_loss:
+            return self.forward_train(img, mask, img_metas, **kwargs)
+        else:
+            return self.forward_test(img, mask, img_metas, **kwargs)
 
     @force_fp32()
     def loss(self, output, gt_3dlanes, output_aux=None):
@@ -455,6 +476,16 @@ class Anchor3DLane(BaseModule):
         gt_project_matrix = gt_project_matrix.squeeze(1)
         output, output_aux = self.encoder_decoder(img, mask, gt_project_matrix, **kwargs)
         losses, other_vars = self.loss(output, gt_3dlanes, output_aux)
+        self.iter = self.iter + 1
+        if self.neptune_logger:
+            for item, value in losses.items():
+                self.neptune_logger["train/"+item].append(value.item())
+            if self.iter == self.save_check_iter+1:
+                max_file = max((f for f in os.listdir(self.output_dir) if re.match(r'iter_\d+\.pth', f)), 
+                key=lambda x: int(re.search(r'(\d+)', x).group()), default='No matching files found.')
+                max_file_path = os.path.join(self.output_dir, max_file)
+                self.model_version[f"model/weights_iter_{self.iter-1}"].upload(max_file_path)
+            
         return losses, other_vars
 
     def train_step(self, data_batch, optimizer=None, **kwargs):

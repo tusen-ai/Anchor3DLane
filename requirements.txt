@@ -8,7 +8,7 @@ tqdm==4.65.0  # Upgraded to resolve compatibility with openxlab
 ujson==5.5.0
 numpy==1.19.5
 matplotlib==3.3.4  # Adjusted for compatibility with numpy version
-opencv-python==4.1.2.30
+opencv-python
 ortools==9.3.10497
 pandas==1.2.5  # Downgraded for numpy compatibility
 scipy==1.5.4

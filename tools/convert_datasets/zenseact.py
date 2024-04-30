@@ -7,12 +7,14 @@ from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 import numpy as np
 import gc
+import tqdm
 import matplotlib.pyplot as plt
 import tqdm
 import mmcv
 import pickle
 import argparse
 import glob
+from mmcv.utils import Config
 
 def moving_average(interval, windowsize=5):
     window = np.ones(int(windowsize)) / float(windowsize)
@@ -109,7 +111,7 @@ def make_lane_y_mono_inc(lane):
     lane = np.delete(lane, idx2del, 0)
     return lane
 
-def transform_annotation(anno, max_lanes=20, anchor_len=20, index_begin=5, anchor_len_2d=72):
+def transform_annotation(anno, max_lanes, anchor_len=20, index_begin=5, anchor_len_2d=72):
     gflatYnorm = 100
     gflatXnorm = 30
     gflatZnorm = 10
@@ -157,7 +159,7 @@ def transform_annotation(anno, max_lanes=20, anchor_len=20, index_begin=5, ancho
 
 import pandas as pd
 
-def extract_data_with_smoothing(data_root, anno_file, tar_path, max_lanes=20, test_mode=False, sample_step=1, prune_vis=True, smooth=True):
+def extract_data_with_smoothing(data_root, cfg, anno_file, tar_path, test_mode=False, sample_step=1, prune_vis=True, smooth=True):
     anchor_y_steps = np.linspace(1, 200, 200 // sample_step)
     image_id  = 0
     cnt_idx = 0
@@ -167,7 +169,7 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, max_lanes=20, te
         # Temporary storage for data to be appended
         temp_annotations = []
 
-        for i, line in enumerate(anno_obj):
+        for i, line in enumerate(tqdm(anno_obj)):
         # Your processing code here
         # Example: time.sleep(0.1) # Simulate work
 
@@ -176,8 +178,6 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, max_lanes=20, te
             info_dict = json.loads(line)
             image_path = os.path.join('data', info_dict['file_path'])
             pickle_file = os.path.join(tar_path, '/'.join(image_path.split('/')[-3:]).replace('.jpg', '.pkl'))
-            if os.path.exists(pickle_file):
-                continue
             
             cnt_idx += 1
 
@@ -203,7 +203,6 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, max_lanes=20, te
             gt_lanes_packed = info_dict['lane_lines']
 
             if len(gt_lanes_packed) < 1:
-                if test_mode:
                     temp_annotations.append({'path': image_path,
                                                         'gt_3dlanes': [],
                                                         'categories': [],
@@ -214,7 +213,7 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, max_lanes=20, te
                                                         'gt_camera_extrinsic': cam_extrinsics,
                                                         'gt_camera_intrinsic': cam_intrinsics,})
 
-                    new_anno = transform_annotation(temp_annotations[0], max_lanes=max_lanes, anchor_len=200)
+                    new_anno = transform_annotation(temp_annotations[0], max_lanes=cfg.dataset_config.max_lanes, anchor_len=200)
                     anno = {}
                     anno['filename'] = new_anno['path']
                     anno['gt_3dlanes'] = new_anno['gt_3dlanes']
@@ -231,8 +230,6 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, max_lanes=20, te
                                 'gt_camera_intrinsic':anno['gt_camera_intrinsic']}, w)
                     w.close()
                     image_id += 1
-                    
-                continue
 
             all_lanes = []
             lane_cates = []
@@ -280,14 +277,11 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, max_lanes=20, te
 
                 lane_results['gt_lane'] = resample_lane
                 lane_results['category'] = gt_lane_packed['category']
-                if lane_results['category'] == 21:
-                    lane_results['category'] = 20
                 
                 all_lanes.append(lane_results)
                 lane_cates.append(lane_results['category'])
 
-            if len(all_lanes) == 0 or len(all_lanes) > max_lanes or max(lane_cates) > 20:
-                if test_mode:
+            if len(all_lanes) == 0:
                     temp_annotations.append({'path': image_path,
                                     'gt_3dlanes': [],
                                     'categories': [],
@@ -318,7 +312,6 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, max_lanes=20, te
                             temp_annotations.clear()  # Clear temporary storage to free up memory
 
                     image_id += 1
-                continue
 
             gt_3dlanes = [p['gt_lane'] for p in all_lanes]
             gt_laneline_category = [p['category'] for p in all_lanes]
@@ -345,10 +338,12 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, max_lanes=20, te
             mmcv.mkdir_or_exist(pickle_path)
             pickle_file = os.path.join(tar_path, '/'.join(anno['filename'].split('/')[-3:]).replace('.jpg', '.pkl'))
             w = open(pickle_file, 'wb')
+            
             pickle.dump({'image_id':anno['filename'],
                         'gt_3dlanes':anno['gt_3dlanes'],
                         'gt_camera_extrinsic':anno['gt_camera_extrinsic'],
-                        'gt_camera_intrinsic':anno['gt_camera_intrinsic']}, w)
+                        'gt_camera_intrinsic':anno['gt_camera_intrinsic'],
+                        'original_anno':info_dict}, w)
             w.close()
                 
                 # After processing each item or batch of items, append data to the DataFrame
@@ -360,100 +355,40 @@ def extract_data_with_smoothing(data_root, anno_file, tar_path, max_lanes=20, te
                 raise Exception("missing test files")
             gc.collect()
             
-            
-    
-    # print('Now transforming annotations...')
-    # print("total_len of old anno", len(old_annotations))
 
-    # for image_id, old_anno in old_annotations.items():
-    #     new_anno = transform_annotation(old_anno, max_lanes=max_lanes, anchor_len=200)
-    #     anno = {}
-    #     anno['filename'] = new_anno['path']
-    #     anno['gt_3dlanes'] = new_anno['gt_3dlanes']
-    #     anno['gt_camera_extrinsic'] = new_anno['gt_camera_extrinsic']
-    #     anno['gt_camera_intrinsic'] = new_anno['gt_camera_intrinsic']
-    #     anno['old_anno'] = new_anno['old_anno']
-    #     pickle_path = os.path.join(tar_path, '/'.join(anno['filename'].split('/')[-3:-1]))
-    #     mmcv.mkdir_or_exist(pickle_path)
-    #     pickle_file = os.path.join(tar_path, '/'.join(anno['filename'].split('/')[-3:]).replace('.jpg', '.pkl'))
-    #     w = open(pickle_file, 'wb')
-    #     pickle.dump({'image_id':anno['filename'],
-    #                  'gt_3dlanes':anno['gt_3dlanes'],
-    #                  'gt_camera_extrinsic':anno['gt_camera_extrinsic'],
-    #                  'gt_camera_intrinsic':anno['gt_camera_intrinsic']}, w)
-    #     w.close()
 
-def vis_anno(pickle_path):
-    fig = plt.figure()
-    ax1 = fig.add_subplot(131)
-    ax2 = fig.add_subplot(132)
-    ax3 = fig.add_subplot(133, projection='3d')
-    r = open(pickle_path, 'rb')
-    p = pickle.load(r)
-    img = cv2.imread(os.path.join('../../data/openlane', p['filename']))
-    img = cv2.resize(img, (480, 360))
-    ax1.imshow(img)
-    gt_3dlanes = p['gt_3dlanes']
-    gt_3dlanes = gt_3dlanes[gt_3dlanes[:, 1] > 0]
-    extrinsic = p['gt_camera_extrinsic']
-    intrinsic = p['gt_camera_intrinsic']
-    project_matrix = projection_g2im_extrinsic(extrinsic, intrinsic)
-    y_steps = np.linspace(1, 100, 100)
-    for lane in gt_3dlanes:
-        xs, zs, vises = lane[5:105], lane[205:305], lane[405:505]
-        xs = xs[vises > 0.5]
-        zs = zs[vises > 0.5]
-        ys = y_steps[vises > 0.5]
-        x2d, y2d = projective_transformation(project_matrix, xs, ys, zs)
-        x2d = (x2d / 1920 * 480)  
-        y2d = (y2d / 1280 * 360)
-        valid_mask = np.logical_and(np.logical_and(x2d >= 0, x2d < 480), np.logical_and(y2d >= 0, y2d < 360))
-        x2d = x2d[valid_mask]
-        y2d = y2d[valid_mask]
-        ax1.plot(x2d, y2d, 'mediumpurple', lw=3)
-        ax2.plot(xs, ys, 'mediumpurple', lw=3)
-        ax3.plot(xs, ys, zs, 'mediumpurple', lw=3)
-    plt.savefig('../../output/openlane_test.png')
-    
 from tqdm import tqdm 
 def merge_annotations(anno_path, json_file):
     with open(anno_path, 'r') as file:
         all_files = file.read().splitlines()
     w = open(json_file, 'w')
     for idx, file_name in enumerate(tqdm(all_files)):
-        with open(os.path.join('data', file_name), 'r') as f:
+        directory_path = f'data/zod_dataset/single_frames/{file_name}/annotations'
+        file_name, full_path = next(((f, os.path.join(directory_path, f)) for f in os.listdir(directory_path) if "ol_format_lane_markings" in f and os.path.isfile(os.path.join(directory_path, f))), (None, None))
+        with open(full_path, 'r') as f:
             s = f.readline()
         w.write(s+'\n')
     w.close()
 
-def generate_datalist(cache_path, data_list):
-    all_cache_file = [f for f in os.listdir(cache_path) if os.path.isdir(os.path.join(cache_path, f))]
-    all_txt_files =  open(data_list).read().splitlines()
-    all_txt_files = [one_file.split('/')[2] for one_file in all_txt_files]
-    difference_lines = list(set(all_cache_file) & set(all_txt_files))
-    with open('overlap_validation.txt', 'w') as file:
-        file.write('\n'.join(difference_lines))
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process Openlane dataset')
-    parser.add_argument('--data_root', default = 'data/zod_dataset', help='root path of openlane dataset')
-    parser.add_argument('--merge', action='store_true', default=False, help='whether to merge the annotation json files')
-    parser.add_argument('--generate', action='store_true', default=True, help='whether to pickle files')
+    parser.add_argument('--config', default= 'configs/zod/anchor3dlane.py', help='train config file path')
+    parser.add_argument('--merge', action='store_true', default=True, help='whether to merge the annotation json files')
+    parser.add_argument('--generate', action='store_true', default=False, help='whether to pickle files')
     args = parser.parse_args()
+    cfg = Config.fromfile(args.config)
+    
     if args.merge:
         print("merging data")
-        print("new_directory", os.path.join(args.data_root, 'data_splits'))
-        mmcv.mkdir_or_exist(os.path.join(args.data_root, 'data_splits'))
-        merge_annotations('data/zod_dataset/data_lists/training.txt', os.path.join(args.data_root, 'data_splits', 'training.json'))
-        merge_annotations('data/zod_dataset/data_lists/validation.txt', os.path.join(args.data_root, 'data_splits', 'validation.json'))
+        print("new_directory", os.path.join(cfg.data_root, 'data_splits'))
+        mmcv.mkdir_or_exist(os.path.join(cfg.data_root, 'data_splits'))
+        merge_annotations('data/zod_dataset/data_lists/training.txt', os.path.join(cfg.data_root, 'data_splits', 'training.json'))
+        merge_annotations('data/zod_dataset/data_lists/validation.txt', os.path.join(cfg.data_root, 'data_splits', 'validation.json'))
     elif args.generate:
-        ori_json = os.path.join(args.data_root, 'data_splits', 'training.json')
-        tar_path = os.path.join(args.data_root, 'cache_dense')
-        data_list_path = os.path.join(args.data_root, 'data_lists')
+        ori_json = os.path.join(cfg.data_root, 'data_splits', 'training.json')
+        tar_path = os.path.join(cfg.data_root, 'cache_dense')
+        data_list_path = os.path.join(cfg.data_root, 'data_lists')
         os.makedirs(data_list_path, exist_ok=True)
-        # extract_data_with_smoothing(args.data_root, ori_json, tar_path=tar_path, test_mode=False)
-        # generate_datalist(os.path.join(tar_path), os.path.join(data_list_path, 'training.txt'))
+        extract_data_with_smoothing(data_root = cfg.data_root, cfg = cfg, anno_file = ori_json, tar_path=tar_path, test_mode=False)
         ori_json = os.path.join(args.data_root, 'data_splits', 'validation.json')
-        tar_path = os.path.join(args.data_root, 'cache_dense')
-        # extract_data_with_smoothing(args.data_root, ori_json, tar_path=tar_path, test_mode=True)
-        generate_datalist(os.path.join(tar_path), os.path.join(data_list_path, 'validation.txt'))
+        extract_data_with_smoothing(data_root = cfg.data_root, cfg = cfg, anno_file = ori_json, tar_path=tar_path, test_mode=True)

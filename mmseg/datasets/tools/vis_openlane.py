@@ -70,8 +70,8 @@ class LaneVis(object):
                               14: 'others',
                               20: 'roadedge'}
 
-    def vis(self, gt, pred, save_dir, img_dir, img_name, prob_th=0.5):
-        img_path = os.path.join(img_dir, 'images', img_name)
+    def vis(self, gt, pred, save_dir, img_dir, img_name, prob_th=0.02):
+        img_path = os.path.join('data', img_name)
         fig = plt.figure()
         ax1 = fig.add_subplot(131)
         ax2 = fig.add_subplot(132)
@@ -426,5 +426,6 @@ class LaneVis(object):
             if i % vis_step > 0:
                 continue
             raw_file = pred['file_path']
+            raw_file = os.path.join('zod_dataset/single_frames', raw_file)
             gt = gts[raw_file]
             self.vis(gt, pred, save_dir, img_dir, raw_file, prob_th)

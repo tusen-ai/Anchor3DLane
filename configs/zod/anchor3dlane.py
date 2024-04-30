@@ -24,11 +24,11 @@ test_pipeline = [
     dict(type='Normalize', **img_norm_cfg),
     dict(type='MaskGenerate', input_size=input_size),
     dict(type='LaneFormat'),
-    # dict(type='Collect', keys=['img', 'img_metas', 'gt_3dlanes', 'gt_project_matrix', 'mask']),
+    dict(type='Collect', keys=['img', 'img_metas', 'gt_3dlanes', 'gt_project_matrix', 'mask']),
 ]
 
 dataset_config = dict(
-    max_lanes = 25,
+    max_lanes = 49,
     input_size = input_size,
 )
 
@@ -70,8 +70,8 @@ model = dict(
         yaws = [30, 20, 15, 10, 7, 5, 3, 1, 0, -1, -3, -5, -7, -10, -15, -20, -30],
         num_x = 45, distances=[3,]),
     db_cfg = dict(
-        org_h = 1280,
-        org_w = 1920,
+        org_h = 2168,
+        org_w = 3848,
         resize_h = 360,
         resize_w = 480,
         ipm_h = 208,
@@ -79,7 +79,6 @@ model = dict(
         pitch = 3,
         cam_height = 1.55,
         crop_y = 0,
-        K = [[2015., 0., 960.], [0., 2015., 540.], [0., 0., 1.]],
         top_view_region = [[-10, 103], [10, 103], [-10, 3], [10, 3]],
         max_2dpoints = 10,
     ),
@@ -89,7 +88,7 @@ model = dict(
     dim_feedforward = 128,
     pre_norm = False,
     feat_size = (45, 60),
-    num_category = 21,
+    num_category = 5,
     loss_lane = dict(
         type = 'LaneLoss',
         loss_weights = dict(cls_loss = 1,
@@ -111,7 +110,7 @@ model = dict(
         conf_threshold = 0),
     test_cfg = dict(
         nms_thres = 2,
-        conf_threshold = 0.2,
+        conf_threshold = 0.02,
         test_conf = 0.5,
         refine_vis = True,
         vis_thresh = 0.5
@@ -135,7 +134,7 @@ log_config = dict(
     ])
 
 #neptune_logger
-log_to_neptune = True
+log_to_neptune =True
 api_token = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI2Yjg0ODM5Zi1lZDhlLTQ2MTItOGM1Zi1mMGI3OTEzMjg2MjAifQ=="
 project = "anna.kopatko/Anchor3DLane"
 model_id = 'ZOD'
@@ -145,6 +144,6 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 load_from = None
 resume_from = None
-workflow = [('train', 10000000)]
+workflow = [('train', 5), ('val', 1)]
 cudnn_benchmark = True
 work_dir = 'output/zod/anchor3dlane'

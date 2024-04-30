@@ -13,6 +13,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.runner import BaseModule, auto_fp16, force_fp32
 from neptune.exceptions import NeptuneModelKeyAlreadyExistsError
+from scipy.interpolate import interp1d
 
 from configs.zod.anchor3dlane import model, checkpoint_config, work_dir,\
     api_token, project, model_id, log_to_neptune, optimizer, runner, data
@@ -21,7 +22,9 @@ from .transformer import TransformerEncoderLayer, TransformerEncoder
 from .position_encoding import PositionEmbeddingSine
 from ..builder import LANENET2S
 from .tools import homography_crop_resize
-from .utils import AnchorGenerator, nms_3d
+
+from .utils import *
+
 
 class DecodeLayer(nn.Module):
     def __init__(self, in_channel, mid_channel, out_channel):
@@ -34,6 +37,15 @@ class DecodeLayer(nn.Module):
             nn.Linear(mid_channel, out_channel))
     def forward(self, x):
         return self.layer(x)
+    
+def postprocess(output, anchor_len=10):
+            proposals = output[0]
+            logits = F.softmax(proposals[:, 5 + 3 * anchor_len:], dim=1)
+            score = 1 - logits[:, 0]  # [N]
+            proposals[:, 5 + 3 * anchor_len:] = logits  # [N, 2]
+            proposals[:, 1] = score
+            results = {'proposals_list': proposals.cpu().numpy()}
+            return results   # [1, 7, 16]
 
 @LANENET2S.register_module()
 class Anchor3DLane(BaseModule):
@@ -75,6 +87,7 @@ class Anchor3DLane(BaseModule):
         self.num_category = num_category
         self.enc_layers = enc_layers
         self.fp16_enabled = False
+        
 
         # Anchor
         self.y_steps = np.array(y_steps, dtype=np.float32)
@@ -139,6 +152,17 @@ class Anchor3DLane(BaseModule):
         self.save_check_iter = checkpoint_config['interval']
         self.iter = 0
         self.output_dir = work_dir 
+        
+        #Eval
+        self.top_view_region = np.array([[-10, 103], [10, 103], [-10, 3], [10, 3]])
+        self.x_min = self.top_view_region[0, 0]
+        self.x_max = self.top_view_region[1, 0]
+        self.y_min = self.top_view_region[2, 1]
+        self.y_max = self.top_view_region[0, 1]
+        self.y_samples = np.linspace(self.y_min, self.y_max, num=100, endpoint=False)
+        self.dist_th = 1.5
+        self.ratio_th = 0.75
+        self.close_range = 40
         
         if log_to_neptune:
             self.neptune_logger = neptune.init_run(project=project, api_token=api_token)
@@ -403,6 +427,7 @@ class Anchor3DLane(BaseModule):
         gt_project_matrix = img.new_zeros((img.shape[0], 3, 4))
         output, _ = self.encoder_decoder(img, mask, gt_project_matrix, **kwargs)
         return output
+    
 
     def forward_test(self, img, mask=None, img_metas=None, gt_project_matrix=None, **kwargs):
         gt_project_matrix = gt_project_matrix.squeeze(1)
@@ -478,13 +503,14 @@ class Anchor3DLane(BaseModule):
         losses, other_vars = self.loss(output, gt_3dlanes, output_aux)
         self.iter = self.iter + 1
         if self.neptune_logger:
-            for item, value in losses.items():
-                self.neptune_logger["train/"+item].append(value.item())
-            if self.iter == self.save_check_iter+1:
+            if self.iter % self.save_check_iter+1==0:
                 max_file = max((f for f in os.listdir(self.output_dir) if re.match(r'iter_\d+\.pth', f)), 
                 key=lambda x: int(re.search(r'(\d+)', x).group()), default='No matching files found.')
                 max_file_path = os.path.join(self.output_dir, max_file)
                 self.model_version[f"model/weights_iter_{self.iter-1}"].upload(max_file_path)
+                
+        losses['model_outputs'] = output['reg_proposals']
+        losses['model_anchors'] = output['anchors']
             
         return losses, other_vars
 
@@ -515,15 +541,398 @@ class Anchor3DLane(BaseModule):
                 averaging the logs.
         """
         losses, other_vars = self(**data_batch)
+        del losses['model_outputs']
         loss, log_vars = self._parse_losses(losses, other_vars)
 
         outputs = dict(
             loss=loss,
             log_vars=log_vars,
             num_samples=data_batch['img'].shape[0])
+        if self.neptune_logger:
+            self.neptune_logger["train/loss"].append(loss.item())
+            for item, value in log_vars.items():
+                self.neptune_logger["train/"+item].append(value)
 
         return outputs
+    
+    def pred2lanes(self, pred):
+        ys = np.array(self.y_steps, dtype=np.float32)
+        lanes = []
+        logits = []
+        probs = []
+        for lane in pred:
+            lane_xs = lane[5:5 + self.anchor_len]
+            lane_zs = lane[5 + self.anchor_len : 5 + 2 * self.anchor_len]
+            lane_vis = (lane[5 + self.anchor_len * 2 : 5 + 3 * self.anchor_len]) > 0
+            if (lane_vis).sum() < 2:
+                continue
+            lane_xs = lane_xs[lane_vis]
+            lane_ys = ys[lane_vis]
+            lane_zs = lane_zs[lane_vis]
+            lanes.append(np.stack([lane_xs, lane_ys, lane_zs], axis=-1).tolist())
+            logits.append(lane[5 + 3 * self.anchor_len:])
+            probs.append(lane[1])
+        return lanes, probs, logits
 
+    def pred2apollosimformat(self, idx, pred):
+        json_line = dict()
+        pred_proposals = pred['proposals_list']
+        pred_lanes, prob_lanes, logits_lanes = self.pred2lanes(pred_proposals)
+        json_line["laneLines"] = pred_lanes
+        json_line["laneLines_prob"]  = prob_lanes
+        json_line["laneLines_logit"] = logits_lanes
+        return json_line
+
+    def format_results(self, predictions):
+        all_predictions = []
+        for idx in range(len(predictions)):
+            result = self.pred2apollosimformat(idx, predictions[idx])
+            save_result = {}
+            lane_lines = []
+            for k in range(len(result['laneLines'])):
+                cate = int(np.argmax(result['laneLines_logit'][k][1:])) + 1
+                prob = float(result['laneLines_prob'][k])
+                lane_lines.append({'xyz': result['laneLines'][k], 'category': cate, 'laneLines_prob': prob})
+            save_result['lane_lines'] = lane_lines
+            all_predictions.append(save_result)
+        return all_predictions
+    
+    def bench(self, pred_lanes, pred_category, gt_lanes, gt_visibility, gt_category):
+        """
+            Matching predicted lanes and ground-truth lanes in their IPM projection, ignoring z attributes.
+            x error, y_error, and z error are all considered, although the matching does not rely on z
+            The input of prediction and ground-truth lanes are in ground coordinate, x-right, y-forward, z-up
+            The fundamental assumption is: 1. there are no two points from different lanes with identical x, y
+                                              but different z's
+                                           2. there are no two points from a single lane having identical x, y
+                                              but different z's
+            If the interest area is within the current drivable road, the above assumptions are almost always valid.
+
+        :param pred_lanes: N X 2 or N X 3 lists depending on 2D or 3D
+        :param gt_lanes: N X 2 or N X 3 lists depending on 2D or 3D
+        :param raw_file: file path rooted in dataset folder
+        :param gt_cam_height: camera height given in ground-truth data
+        :param gt_cam_pitch: camera pitch given in ground-truth data
+        :return:
+        """
+        # change this properly
+        close_range_idx = np.where(self.y_samples > self.close_range)[0][0]
+
+        r_lane, p_lane, c_lane = 0., 0., 0.
+        x_error_close = []
+        x_error_far = []
+        z_error_close = []
+        z_error_far = []
+
+        # ======================== Added in latest version ===============================
+        # only keep the visible portion
+        gt_lanes = [prune_3d_lane_by_visibility(np.array(gt_lane), np.array(gt_visibility[k])) for k, gt_lane in
+                    enumerate(gt_lanes)]
+        gt_category = [gt_category[k] for k, lane in enumerate(gt_lanes) if lane.shape[0] > 1]
+        gt_lanes = [lane for lane in gt_lanes if lane.shape[0] > 1]
+        # ======================== Added in latest version ===============================
+
+        # only consider those pred lanes overlapping with sampling range
+        pred_category = [pred_category[k] for k, lane in enumerate(pred_lanes)
+                        if lane[0, 1] < self.y_samples[-1] and lane[-1, 1] > self.y_samples[0]]
+        pred_lanes = [lane for lane in pred_lanes if lane[0, 1] < self.y_samples[-1] and lane[-1, 1] > self.y_samples[0]]
+
+        pred_lanes = [prune_3d_lane_by_range(np.array(lane), self.x_min, self.x_max) for lane in pred_lanes]
+
+        pred_category = [pred_category[k] for k, lane in enumerate(pred_lanes) if lane.shape[0] > 1]
+        pred_lanes = [lane for lane in pred_lanes if lane.shape[0] > 1]
+
+        # only consider those gt lanes overlapping with sampling range
+        gt_category = [gt_category[k] for k, lane in enumerate(gt_lanes)
+                        if lane[0, 1] < self.y_samples[-1] and lane[-1, 1] > self.y_samples[0]]
+        gt_lanes = [lane for lane in gt_lanes if lane[0, 1] < self.y_samples[-1] and lane[-1, 1] > self.y_samples[0]]
+
+        gt_lanes = [prune_3d_lane_by_range(np.array(lane), self.x_min, self.x_max) for lane in gt_lanes]
+
+        gt_category = [gt_category[k] for k, lane in enumerate(gt_lanes) if lane.shape[0] > 1]
+        gt_lanes = [lane for lane in gt_lanes if lane.shape[0] > 1]
+
+        cnt_gt = len(gt_lanes)
+        cnt_pred = len(pred_lanes)
+
+        gt_visibility_mat = np.zeros((cnt_gt, 100))
+        pred_visibility_mat = np.zeros((cnt_pred, 100))
+
+        # resample gt and pred at y_samples
+        for i in range(cnt_gt):
+            min_y = np.min(np.array(gt_lanes[i])[:, 1])
+            max_y = np.max(np.array(gt_lanes[i])[:, 1])
+            x_values, z_values, visibility_vec = resample_laneline_in_y(np.array(gt_lanes[i]), self.y_samples, out_vis=True)
+            gt_lanes[i] = np.vstack([x_values, z_values]).T
+            gt_visibility_mat[i, :] = np.logical_and(x_values >= self.x_min, np.logical_and(x_values <= self.x_max,
+                                                     np.logical_and(self.y_samples >= min_y, self.y_samples <= max_y)))
+            gt_visibility_mat[i, :] = np.logical_and(gt_visibility_mat[i, :], visibility_vec)
+
+        for i in range(cnt_pred):
+            # # ATTENTION: ensure y mono increase before interpolation: but it can reduce size
+            # pred_lanes[i] = make_lane_y_mono_inc(np.array(pred_lanes[i]))
+            # pred_lane = prune_3d_lane_by_range(np.array(pred_lanes[i]), self.x_min, self.x_max)
+            min_y = np.min(np.array(pred_lanes[i])[:, 1])
+            max_y = np.max(np.array(pred_lanes[i])[:, 1])
+            x_values, z_values, visibility_vec = resample_laneline_in_y(np.array(pred_lanes[i]), self.y_samples, out_vis=True)
+            pred_lanes[i] = np.vstack([x_values, z_values]).T
+            pred_visibility_mat[i, :] = np.logical_and(x_values >= self.x_min, np.logical_and(x_values <= self.x_max,
+                                                       np.logical_and(self.y_samples >= min_y, self.y_samples <= max_y)))
+            pred_visibility_mat[i, :] = np.logical_and(pred_visibility_mat[i, :], visibility_vec)
+            # pred_visibility_mat[i, :] = np.logical_and(x_values >= self.x_min, x_values <= self.x_max)
+
+        # at least two-points for both gt and pred
+        gt_lanes = [gt_lanes[k] for k in range(cnt_gt) if np.sum(gt_visibility_mat[k, :]) > 1]
+        gt_category = [gt_category[k] for k in range(cnt_gt) if np.sum(gt_visibility_mat[k, :]) > 1]
+        gt_visibility_mat = gt_visibility_mat[np.sum(gt_visibility_mat, axis=-1) > 1, :]
+        cnt_gt = len(gt_lanes)
+
+        pred_lanes = [pred_lanes[k] for k in range(cnt_pred) if np.sum(pred_visibility_mat[k, :]) > 1]
+        pred_category = [pred_category[k] for k in range(cnt_pred) if np.sum(pred_visibility_mat[k, :]) > 1]
+        pred_visibility_mat = pred_visibility_mat[np.sum(pred_visibility_mat, axis=-1) > 1, :]
+        cnt_pred = len(pred_lanes)
+
+        adj_mat = np.zeros((cnt_gt, cnt_pred), dtype=int)
+        cost_mat = np.zeros((cnt_gt, cnt_pred), dtype=int)
+        cost_mat.fill(1000)
+        num_match_mat = np.zeros((cnt_gt, cnt_pred), dtype=float)
+        x_dist_mat_close = np.zeros((cnt_gt, cnt_pred), dtype=float)
+        x_dist_mat_close.fill(1000.)
+        x_dist_mat_far = np.zeros((cnt_gt, cnt_pred), dtype=float)
+        x_dist_mat_far.fill(1000.)
+        z_dist_mat_close = np.zeros((cnt_gt, cnt_pred), dtype=float)
+        z_dist_mat_close.fill(1000.)
+        z_dist_mat_far = np.zeros((cnt_gt, cnt_pred), dtype=float)
+        z_dist_mat_far.fill(1000.)
+
+        # compute curve to curve distance
+        for i in range(cnt_gt):
+            for j in range(cnt_pred):
+                x_dist = np.abs(gt_lanes[i][:, 0] - pred_lanes[j][:, 0])
+                z_dist = np.abs(gt_lanes[i][:, 1] - pred_lanes[j][:, 1])
+
+                # apply visibility to penalize different partial matching accordingly
+                both_visible_indices = np.logical_and(gt_visibility_mat[i, :] >= 0.5, pred_visibility_mat[j, :] >= 0.5)
+                both_invisible_indices = np.logical_and(gt_visibility_mat[i, :] < 0.5, pred_visibility_mat[j, :] < 0.5)
+                other_indices = np.logical_not(np.logical_or(both_visible_indices, both_invisible_indices))
+                
+                euclidean_dist = np.sqrt(x_dist ** 2 + z_dist ** 2)
+                euclidean_dist[both_invisible_indices] = 0
+                euclidean_dist[other_indices] = self.dist_th
+
+                # if np.average(euclidean_dist) < 2*self.dist_th: # don't prune here to encourage finding perfect match
+                num_match_mat[i, j] = np.sum(euclidean_dist < self.dist_th) - np.sum(both_invisible_indices)
+                adj_mat[i, j] = 1
+                # ATTENTION: use the sum as int type to meet the requirements of min cost flow optimization (int type)
+                # using num_match_mat as cost does not work?
+                # make sure cost is not set to 0 when it's smaller than 1
+                cost_ = np.sum(euclidean_dist)
+                if cost_<1 and cost_>0:
+                    cost_ = 1
+                else:
+                    cost_ = (cost_).astype(int)
+                cost_mat[i, j] = cost_
+
+                # use the both visible portion to calculate distance error
+                if np.sum(both_visible_indices[:close_range_idx]) > 0:
+                    x_dist_mat_close[i, j] = np.sum(
+                        x_dist[:close_range_idx] * both_visible_indices[:close_range_idx]) / np.sum(
+                        both_visible_indices[:close_range_idx])
+                    z_dist_mat_close[i, j] = np.sum(
+                        z_dist[:close_range_idx] * both_visible_indices[:close_range_idx]) / np.sum(
+                        both_visible_indices[:close_range_idx])
+                else:
+                    x_dist_mat_close[i, j] = -1
+                    z_dist_mat_close[i, j] = -1
+                    
+
+                if np.sum(both_visible_indices[close_range_idx:]) > 0:
+                    x_dist_mat_far[i, j] = np.sum(
+                        x_dist[close_range_idx:] * both_visible_indices[close_range_idx:]) / np.sum(
+                        both_visible_indices[close_range_idx:])
+                    z_dist_mat_far[i, j] = np.sum(
+                        z_dist[close_range_idx:] * both_visible_indices[close_range_idx:]) / np.sum(
+                        both_visible_indices[close_range_idx:])
+                else:
+                    x_dist_mat_far[i, j] = -1
+                    z_dist_mat_far[i, j] = -1
+
+        # solve bipartite matching vis min cost flow solver
+        match_results = SolveMinCostFlow(adj_mat, cost_mat)
+        match_results = np.array(match_results)
+
+        # only a match with avg cost < self.dist_th is consider valid one
+        match_gt_ids = []
+        match_pred_ids = []
+        match_num = 0
+        if match_results.shape[0] > 0:
+            for i in range(len(match_results)):
+                if match_results[i, 2] < self.dist_th * self.y_samples.shape[0]:
+                    match_num += 1
+                    gt_i = match_results[i, 0]
+                    pred_i = match_results[i, 1]
+                    # consider match when the matched points is above a ratio
+                    if num_match_mat[gt_i, pred_i] / np.sum(gt_visibility_mat[gt_i, :]) >= self.ratio_th:
+                        r_lane += 1
+                        match_gt_ids.append(gt_i)
+                    if num_match_mat[gt_i, pred_i] / np.sum(pred_visibility_mat[pred_i, :]) >= self.ratio_th:
+                        p_lane += 1
+                        match_pred_ids.append(pred_i)
+                    if pred_category != []:
+                        if pred_category[pred_i] == gt_category[gt_i] or (pred_category[pred_i]==20 and gt_category[gt_i]==21):
+                            c_lane += 1    # category matched num
+                    x_error_close.append(x_dist_mat_close[gt_i, pred_i])
+                    x_error_far.append(x_dist_mat_far[gt_i, pred_i])
+                    z_error_close.append(z_dist_mat_close[gt_i, pred_i])
+                    z_error_far.append(z_dist_mat_far[gt_i, pred_i])
+        return r_lane, p_lane, c_lane, cnt_gt, cnt_pred, match_num, x_error_close, x_error_far, z_error_close, z_error_far
+    def eval(self, outputs, gt_3d_lanes, prob_th = 0.02):
+        results = []
+        for output in outputs:
+                result = postprocess(output, anchor_len=self.anchor_len)
+                results.append(result)
+        results = self.format_results(results)
+                
+        laneline_stats = []
+        laneline_x_error_close = []
+        laneline_x_error_far = []
+        laneline_z_error_close = []
+        laneline_z_error_far = []
+        for i, pred in enumerate(results):
+            pred_lanelines = pred['lane_lines'].copy()
+            pred_lanes = [np.array(lane['xyz']) for i, lane in enumerate(pred_lanelines)]
+            pred_category = [int(lane['category']) for i, lane in enumerate(pred_lanelines)]
+            pred_laneLines_prob = [np.array(lane['laneLines_prob']) for i, lane in enumerate(pred_lanelines)]
+
+            # filter out probability
+            pred_lanes = [pred_lanes[ii] for ii in range(len(pred_laneLines_prob)) if
+                    pred_laneLines_prob[ii] > prob_th]
+            pred_category = [pred_category[ii] for ii in range(len(pred_laneLines_prob)) if
+                    pred_laneLines_prob[ii] > prob_th]
+            pred_laneLines_prob = [pred_laneLines_prob[ii] for ii in range(len(pred_laneLines_prob)) if
+                    pred_laneLines_prob[ii] > prob_th]
+
+            gt = gt_3d_lanes
+            if gt['original_xyz_lanes'][i] ==0:
+                continue
+
+            
+            # evaluate lanelines
+            cam_extrinsics = np.array(gt['original_extrinsics'])[i].cpu()
+            cam_intrinsics = np.array(gt['original_instrinsics'])[i].cpu()
+            # Re-calculate extrinsic matrix based on ground coordinate
+            R_vg = np.array([[0, 1, 0],
+                                [-1, 0, 0],
+                                [0, 0, 1]], dtype=float)
+            R_gc = np.array([[1, 0, 0],
+                                [0, 0, 1],
+                                [0, -1, 0]], dtype=float)
+            cam_extrinsics[:3, :3] = np.matmul(np.matmul(
+                                        np.matmul(np.linalg.inv(R_vg), cam_extrinsics[:3, :3]),
+                                            R_vg), R_gc)
+            gt_cam_height = cam_extrinsics[2, 3]
+            gt_cam_pitch = 0
+
+            cam_extrinsics[0:2, 3] = 0.0
+            # cam_extrinsics[2, 3] = gt_cam_height
+
+            try:
+                gt_lanes_packed = gt['original_xyz_lanes'][i]
+            except:
+                print("error 'lane_lines' in gt: ", gt['file_path'])
+
+            gt_lanes, gt_visibility, gt_category = [], [], []
+            for j, gt_lane_packed in enumerate(gt_lanes_packed):
+                # A GT lane can be either 2D or 3D
+                # if a GT lane is 3D, the height is intact from 3D GT, so keep it intact here too
+                lane = gt_lane_packed.cpu()
+                lane_visibility = np.array(gt['original_visibility'][i][j].cpu())
+
+                lane = np.vstack((lane, np.ones((1, lane.shape[1]))))
+                cam_representation = np.linalg.inv(
+                                        np.array([[0, 0, 1, 0],
+                                                  [-1, 0, 0, 0],
+                                                  [0, -1, 0, 0],
+                                                  [0, 0, 0, 1]], dtype=float))
+                lane = np.matmul(cam_extrinsics, np.matmul(cam_representation, lane))
+                lane = lane[0:3, :].T
+
+                gt_lanes.append(lane)
+                gt_visibility.append(lane_visibility)
+                gt_category.append(gt['original_categoties'][i][j].cpu())
+            
+            P_g2im = projection_g2im_extrinsic(cam_extrinsics, cam_intrinsics)
+
+
+            # N to N matching of lanelines
+            r_lane, p_lane, c_lane, cnt_gt, cnt_pred, match_num, \
+            x_error_close, x_error_far, \
+            z_error_close, z_error_far = self.bench(pred_lanes,
+                                                    pred_category, 
+                                                    gt_lanes,
+                                                    gt_visibility,
+                                                    gt_category)
+            laneline_stats.append(np.array([r_lane, p_lane, c_lane, cnt_gt, cnt_pred, match_num]))
+            # consider x_error z_error only for the matched lanes
+            # if r_lane > 0 and p_lane > 0:
+            laneline_x_error_close.extend(x_error_close)
+            laneline_x_error_far.extend(x_error_far)
+            laneline_z_error_close.extend(z_error_close)
+            laneline_z_error_far.extend(z_error_far)
+            recall = r_lane / (cnt_gt + 1e-6)
+            precision = p_lane / (cnt_pred + 1e-6)
+            f_score = 2 * recall * precision / (recall + precision + 1e-6)
+            cate_acc = c_lane / (match_num + 1e-6)
+
+        output_stats = []
+        laneline_stats = np.array(laneline_stats)
+        laneline_x_error_close = np.array(laneline_x_error_close)
+        laneline_x_error_far = np.array(laneline_x_error_far)
+        laneline_z_error_close = np.array(laneline_z_error_close)
+        laneline_z_error_far = np.array(laneline_z_error_far)
+
+        if np.sum(laneline_stats[:, 3])!= 0:
+            R_lane = np.sum(laneline_stats[:, 0]) / (np.sum(laneline_stats[:, 3]))
+        else:
+            R_lane = np.sum(laneline_stats[:, 0]) / (np.sum(laneline_stats[:, 3]) + 1e-6)   # recall = TP / (TP+FN)
+        if np.sum(laneline_stats[:, 4]) != 0:
+            P_lane = np.sum(laneline_stats[:, 1]) / (np.sum(laneline_stats[:, 4]))
+        else:
+            P_lane = np.sum(laneline_stats[:, 1]) / (np.sum(laneline_stats[:, 4]) + 1e-6)   # precision = TP / (TP+FP)
+        if np.sum(laneline_stats[:, 5]) != 0:
+            C_lane = np.sum(laneline_stats[:, 2]) / (np.sum(laneline_stats[:, 5]))
+        else:
+            C_lane = np.sum(laneline_stats[:, 2]) / (np.sum(laneline_stats[:, 5]) + 1e-6)   # category_accuracy
+        if R_lane + P_lane != 0:
+            F_lane = 2 * R_lane * P_lane / (R_lane + P_lane)
+        else:
+            F_lane = 2 * R_lane * P_lane / (R_lane + P_lane + 1e-6)
+        x_error_close_avg = np.average(laneline_x_error_close[laneline_x_error_close > -1 + 1e-6])
+        x_error_far_avg = np.average(laneline_x_error_far[laneline_x_error_far > -1 + 1e-6])
+        z_error_close_avg = np.average(laneline_z_error_close[laneline_z_error_close > -1 + 1e-6])
+        z_error_far_avg = np.average(laneline_z_error_far[laneline_z_error_far > -1 + 1e-6])
+
+        output_stats.append(F_lane)
+        output_stats.append(R_lane)
+        output_stats.append(P_lane)
+        output_stats.append(C_lane)
+        output_stats.append(x_error_close_avg)
+        output_stats.append(x_error_far_avg)
+        output_stats.append(z_error_close_avg)
+        output_stats.append(z_error_far_avg)
+        output_stats.append(np.sum(laneline_stats[:, 0]))   # 8
+        output_stats.append(np.sum(laneline_stats[:, 1]))   # 9
+        output_stats.append(np.sum(laneline_stats[:, 2]))   # 10
+        output_stats.append(np.sum(laneline_stats[:, 3]))   # 11
+        output_stats.append(np.sum(laneline_stats[:, 4]))   # 12
+        output_stats.append(np.sum(laneline_stats[:, 5]))   # 13
+        
+        output_dict = {"F_lane": F_lane, "R_lane": R_lane, "P_lane": P_lane, "C_lane": C_lane, "x_error_close_avg": x_error_close_avg, \
+            "x_error_far_avg": x_error_far_avg, "z_error_close_avg":z_error_close_avg, "z_error_far_avg":z_error_far_avg}
+
+        return output_dict
+        
+        
     def val_step(self, data_batch, optimizer=None, **kwargs):
         """The iteration step during validation.
 
@@ -532,17 +941,32 @@ class Anchor3DLane(BaseModule):
         not implemented with this method, but an evaluation hook.
         """
         losses = self(**data_batch)
+        nms_outputs = self.nms(losses[0]['model_outputs'], losses[0]['model_anchors'], self.test_cfg.nms_thres, 
+                                  self.test_cfg.conf_threshold, refine_vis=self.test_cfg.refine_vis,
+                                  vis_thresh=self.test_cfg.vis_thresh)
+        del losses[0]['model_outputs'], losses[0]['model_anchors']
         loss, log_vars = self._parse_losses(losses)
 
         log_vars_ = dict()
         for loss_name, loss_value in log_vars.items():
             k = loss_name + '_val'
             log_vars_[k] = loss_value
+            
+        eval_metrics = self.eval(nms_outputs, data_batch)
+        
+        if self.neptune_logger:
+            for item, value in eval_metrics.items():
+                self.neptune_logger["val/"+item].append(value)
 
         outputs = dict(
             loss=loss,
             log_vars=log_vars_,
             num_samples=len(data_batch['img_metas']))
+        
+        if self.neptune_logger:
+            self.neptune_logger["val/loss"].append(loss.item())
+            for item, value in log_vars.items():
+                self.neptune_logger["val/"+item].append(value)
 
         return outputs
 
@@ -560,8 +984,10 @@ class Anchor3DLane(BaseModule):
                 all the variables to be sent to the logger.
         """
         log_vars = OrderedDict()
-        for var_name, var_value in other_vars.items():
-            log_vars[var_name] = var_value
+        # for var_name, var_value in other_vars.items():
+        #     log_vars[var_name] = var_value
+        if type(losses)!=dict:
+            losses = losses[0]
         for loss_name, loss_value in losses.items():
             if isinstance(loss_value, torch.Tensor):
                 log_vars[loss_name] = loss_value.mean()

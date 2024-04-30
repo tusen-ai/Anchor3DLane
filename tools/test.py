@@ -24,8 +24,8 @@ from mmseg.utils import build_ddp, build_dp, get_device, setup_multi_processes
 def parse_args():
     parser = argparse.ArgumentParser(
         description='mmseg test (and eval) a model')
-    parser.add_argument('config', help='test config file path')
-    parser.add_argument('checkpoint', help='checkpoint file')
+    parser.add_argument('--config', default= 'configs/zod/anchor3dlane.py', help='test config file path')
+    parser.add_argument('--checkpoint', default = 'output/zod/anchor3dlane/latest.pth',help='checkpoint file')
     parser.add_argument(
         '--work-dir',
         help=('if specified, the evaluation metric results will be dumped'
@@ -40,10 +40,10 @@ def parse_args():
         help='Format the output results without perform evaluation. It is'
         'useful when you want to format the result to a specific format and '
         'submit it to the test server')
-    parser.add_argument('--show', action='store_true', help='show results')
+    parser.add_argument('--show', default=True, action='store_true', help='show results')
     parser.add_argument('--eval', action='store_true', help='show results', default=True)
     parser.add_argument(
-        '--show-dir', help='directory where painted images will be saved')
+        '--show-dir', default = 'image_output_zod', help='directory where painted images will be saved')
     parser.add_argument(
         '--gpu-collect',
         action='store_true',
@@ -121,6 +121,8 @@ def main():
 
     if cfg.data.test.type.startswith('Openlane') or cfg.data.test.type.startswith('Waymo'):
         from mmseg.apis.test_openlane import test_openlane as test
+    elif cfg.data.test.type.startswith('ZOD'):
+        from mmseg.apis.test_zod import test_zod as test
     elif cfg.data.test.type.startswith('ONCE'):
         from mmseg.apis.test_once import test_once as test
     elif cfg.data.test.type.startswith('APOLLOSIM'):
@@ -171,9 +173,9 @@ def main():
     })
     test_loader_cfg = {
         **loader_cfg,
-        'samples_per_gpu': 16,    # for debug
+        'samples_per_gpu': 4,    # for debug
         'shuffle': False,  # Not shuffle by default
-        **cfg.data.get('test_dataloader', {})
+        **cfg.data.get('test_dataloader', {}),
     }
     # build the dataloader
     data_loader = build_dataloader(dataset, **test_loader_cfg)

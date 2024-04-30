@@ -23,7 +23,7 @@ from copy import deepcopy
 from scipy.interpolate import interp1d
 
 from ..tools.utils import *
-from ..tools import eval_openlane
+from ..tools import eval_zod
 from ..builder import DATASETS
 from ..pipelines import Compose
 
@@ -82,10 +82,10 @@ class ZODDataset(Dataset):
         print('is_resample: {}'.format(is_resample))
         inp_h, inp_w = dataset_config['input_size']
 
-        self.h_org  = 1280
-        self.w_org  = 1920
-        self.org_h  = 1280
-        self.org_w  = 1920
+        self.h_org  = 2168
+        self.w_org  = 3848
+        self.org_h  = 2168
+        self.org_w  = 3848
         self.h_crop = 0
         self.crop_y = 0
 
@@ -141,6 +141,8 @@ class ZODDataset(Dataset):
 
         if test_list is not None:
             self.test_list =  os.path.join(self.data_root, test_list)
+        else:
+            self.test_list = None
 
         self.load_annotations()
 
@@ -169,13 +171,14 @@ class ZODDataset(Dataset):
             dict: Training/test data (with annotation if `test_mode` is set
                 False).
         """
+        from mmcv.parallel import DataContainer as DC
         results = self.img_infos[idx].copy()
         results['img_info'] = {}
         results['img_info']['filename'] = results['filename']
         results['ori_filename'] = results['filename']
         results['ori_shape'] = (self.h_org, self.w_org)
         results['flip'] = False
-        results['flip_direction'] = None
+        results['flip_direction'] = False
         with open(results['anno_file'], 'rb') as f:
             obj = pickle.load(f)
             results.update(obj)
@@ -185,6 +188,22 @@ class ZODDataset(Dataset):
         results['gt_project_matrix'] = projection_g2im_extrinsic(results['gt_camera_extrinsic'], results['gt_camera_intrinsic'])
         results['gt_homography_matrix'] = homography_g2im_extrinsic(results['gt_camera_extrinsic'], results['gt_camera_intrinsic'])
         results = self.pipeline(results)
+        if 'original_anno' in obj:
+            original_gt_3dlanes= obj['original_anno']
+            results['original_xyz_lanes'] =DC([to_tensor(np.array(lane['xyz'])) for lane in original_gt_3dlanes['lane_lines']])
+            results['original_visibility'] = DC([to_tensor(np.array(lane['visibility'])) for lane in original_gt_3dlanes['lane_lines']])
+            results['original_categoties'] = DC([to_tensor(np.array(lane['category'])) for lane in original_gt_3dlanes['lane_lines']])
+            results['original_extrinsics'] =  DC(to_tensor(np.array(original_gt_3dlanes['extrinsic'])))
+            results['original_instrinsics'] =  DC(to_tensor(np.array(original_gt_3dlanes['intrinsic'])))
+        else:
+            results['original_xyz_lanes'] =DC(to_tensor(0))
+            results['original_visibility'] = DC(to_tensor(0))
+            results['original_categoties'] = DC(to_tensor(0))
+            results['original_extrinsics'] =   DC(to_tensor(0))
+            results['original_instrinsics'] =   DC(to_tensor(0))
+
+            
+        
         return results
 
     def pred2lanes(self, pred):
@@ -234,8 +253,8 @@ class ZODDataset(Dataset):
                 jsonFile.write('\n')
         print("save results to ", filename)
 
-    def eval(self, pred_filename, prob_th=0.5):
-        evaluator = eval_openlane.OpenLaneEval(self)
+    def eval(self, pred_filename, prob_th=0.02):
+        evaluator = eval_zod.ZodEval(self)
         pred_lines = open(pred_filename).readlines()
         json_pred = [json.loads(line) for line in pred_lines]
         json_gt = [json.loads(line) for line in open(self.eval_file).readlines()]
@@ -259,6 +278,22 @@ class ZODDataset(Dataset):
         eval_results['z_error_close'] = eval_stats[6]
         eval_results['z_error_far'] = eval_stats[7]
         return eval_results
+    
+    def format_results(self, predictions, filename):
+        with open(filename, 'w') as jsonFile:
+            for idx in tqdm.tqdm(range(len(predictions))):
+                result = self.pred2apollosimformat(idx, predictions[idx])
+                save_result = {}
+                save_result['file_path'] = result['raw_file']
+                lane_lines = []
+                for k in range(len(result['laneLines'])):
+                    cate = int(np.argmax(result['laneLines_logit'][k][1:])) + 1
+                    prob = float(result['laneLines_prob'][k])
+                    lane_lines.append({'xyz': result['laneLines'][k], 'category': cate, 'laneLines_prob': prob})
+                save_result['lane_lines'] = lane_lines
+                json.dump(save_result, jsonFile)
+                jsonFile.write('\n')
+        print("save results to ", filename)
 
     def __len__(self):
         return len(self.img_infos)
@@ -268,3 +303,4 @@ class ZODDataset(Dataset):
 
     def _get_img_width(self, path):
         return 1920
+

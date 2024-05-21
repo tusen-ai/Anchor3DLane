@@ -6,5 +6,7 @@ output/
 data.pickle
 test.onnx
 async/
-__pycache__/ 
+**/__pycache__/
 cache_dense/
+.neptune/
+mmsegmentation.egg-info/

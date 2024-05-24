@@ -385,6 +385,7 @@ if __name__ == '__main__':
         merge_annotations('data/zod_dataset/data_lists/training.txt', os.path.join(cfg.data_root, 'data_splits', 'training.json'))
         merge_annotations('data/zod_dataset/data_lists/validation.txt', os.path.join(cfg.data_root, 'data_splits', 'validation.json'))
     elif args.generate:
+        # TODO: add a function to create filtered data lists
         ori_json = os.path.join(cfg.data_root, 'data_splits', 'training.json')
         tar_path = os.path.join(cfg.data_root, 'cache_dense')
         data_list_path = os.path.join(cfg.data_root, 'data_lists')

@@ -3,6 +3,7 @@ output/
 .venv/
 .vscode/
 .idea/
+*.pyc
 data.pickle
 test.onnx
 async/

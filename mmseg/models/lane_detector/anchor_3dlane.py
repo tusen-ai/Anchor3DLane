@@ -28,19 +28,7 @@ from .transformer import TransformerEncoderLayer, TransformerEncoder
 from .position_encoding import PositionEmbeddingSine
 from ..builder import LANENET2S
 from .tools import homography_crop_resize
-from .utils import AnchorGenerator, nms_3d
-
-class DecodeLayer(nn.Module):
-    def __init__(self, in_channel, mid_channel, out_channel):
-        super(DecodeLayer, self).__init__()
-        self.layer = nn.Sequential(
-            nn.Linear(in_channel, mid_channel),
-            nn.ReLU6(),
-            nn.Linear(mid_channel, mid_channel),
-            nn.ReLU6(),
-            nn.Linear(mid_channel, out_channel))
-    def forward(self, x):
-        return self.layer(x)
+from .utils import AnchorGenerator, nms_3d, DecodeLayer
 
 @LANENET2S.register_module()
 class Anchor3DLane(BaseModule):

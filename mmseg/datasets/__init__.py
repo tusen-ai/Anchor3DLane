@@ -7,22 +7,22 @@ from .coco_stuff import COCOStuffDataset
 from .custom import CustomDataset
 from .dark_zurich import DarkZurichDataset
 from .dataset_wrappers import (ConcatDataset, MultiImageMixDataset,
-                               RepeatDataset)
+                               RepeatDataset,)
 from .drive import DRIVEDataset
 from .hrf import HRFDataset
 from .isaid import iSAIDDataset
 from .isprs import ISPRSDataset
+from .lane_datasets.apollosim import APOLLOSIMDataset
+from .lane_datasets.once import ONCEDataset
+from .lane_datasets.openlane import OpenlaneDataset
+from .lane_datasets.openlane_lidar import OpenlaneLidarDataset
+from .lane_datasets.openlane_temporal import OpenlaneMFDataset
 from .loveda import LoveDADataset
 from .night_driving import NightDrivingDataset
 from .pascal_context import PascalContextDataset, PascalContextDataset59
 from .potsdam import PotsdamDataset
 from .stare import STAREDataset
 from .voc import PascalVOCDataset
-
-from .lane_datasets.apollosim import APOLLOSIMDataset
-from .lane_datasets.openlane import OpenlaneDataset
-from .lane_datasets.openlane_temporal import OpenlaneMFDataset
-from .lane_datasets.once import ONCEDataset
 
 __all__ = [
     'CustomDataset', 'build_dataloader', 'ConcatDataset', 'RepeatDataset',
@@ -32,4 +32,4 @@ __all__ = [
     'STAREDataset', 'DarkZurichDataset', 'NightDrivingDataset',
     'COCOStuffDataset', 'LoveDADataset', 'MultiImageMixDataset',
     'iSAIDDataset', 'ISPRSDataset', 'PotsdamDataset', 'APOLLOSIMDataset', 'OpenlaneDataset',
-    'OpenlaneMFDataset', 'ONCEDataset']
+    'OpenlaneMFDataset', 'ONCEDataset', 'OpenlaneLidarDataset']

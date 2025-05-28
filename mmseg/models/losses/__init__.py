@@ -7,10 +7,11 @@ from .focal_loss import FocalLossSigmoid
 from .lovasz_loss import LovaszLoss
 from .utils import reduce_loss, weight_reduce_loss, weighted_loss
 from .lane_loss import LaneLoss
+from .lane_loss_v2 import LaneLossV2
 
 __all__ = [
     'accuracy', 'Accuracy', 'cross_entropy', 'binary_cross_entropy',
     'mask_cross_entropy', 'CrossEntropyLoss', 'reduce_loss',
     'weight_reduce_loss', 'weighted_loss', 'LovaszLoss', 'DiceLoss',
-    'FocalLossSigmoid', 'LaneLoss'
+    'FocalLossSigmoid', 'LaneLoss', 'LaneLossV2'
 ]

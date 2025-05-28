@@ -1,4 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn import ConvModule
@@ -6,6 +7,8 @@ from mmcv.runner import BaseModule, auto_fp16
 
 from mmseg.ops import resize
 from ..builder import NECKS
+from ..lane_detector.position_encoding import PositionEmbeddingSine
+from ..lane_detector.transformer import TransformerEncoderLayer
 
 
 @NECKS.register_module()
@@ -77,7 +80,9 @@ class FPN(BaseModule):
                  conv_cfg=None,
                  norm_cfg=None,
                  act_cfg=None,
+                 attention=False,
                  upsample_cfg=dict(mode='nearest'),
+                 down_first=False,
                  init_cfg=dict(
                      type='Xavier', layer='Conv2d', distribution='uniform')):
         super(FPN, self).__init__(init_cfg)
@@ -90,6 +95,8 @@ class FPN(BaseModule):
         self.no_norm_on_lateral = no_norm_on_lateral
         self.fp16_enabled = False
         self.upsample_cfg = upsample_cfg.copy()
+        self.attention = attention
+        self.down_first = down_first
 
         if end_level == -1:
             self.backbone_end_level = self.num_ins
@@ -116,6 +123,9 @@ class FPN(BaseModule):
 
         self.lateral_convs = nn.ModuleList()
         self.fpn_convs = nn.ModuleList()
+        if self.attention:
+            self.position_embeddings = nn.ModuleList()
+            self.transformer_layers = nn.ModuleList()
 
         for i in range(self.start_level, self.backbone_end_level):
             l_conv = ConvModule(
@@ -139,6 +149,14 @@ class FPN(BaseModule):
             self.lateral_convs.append(l_conv)
             self.fpn_convs.append(fpn_conv)
 
+            if self.attention:
+                position_embedding = PositionEmbeddingSine(num_pos_feats=out_channels // 2, normalize=True)
+                transformer_layer = TransformerEncoderLayer(out_channels, nhead=2, dim_feedforward=out_channels * 2, dropout=0, normalize_before=False)
+                self.position_embeddings.append(position_embedding)
+                self.transformer_layers.append(transformer_layer)
+
+
+
         # add extra conv layers (e.g., RetinaNet)
         extra_levels = num_outs - self.backbone_end_level + self.start_level
         if self.add_extra_convs and extra_levels >= 1:
@@ -151,18 +169,25 @@ class FPN(BaseModule):
                     in_channels,
                     out_channels,
                     3,
-                    stride=2,
+                    stride=1, # 2
                     padding=1,
                     conv_cfg=conv_cfg,
                     norm_cfg=norm_cfg,
                     act_cfg=act_cfg,
                     inplace=False)
                 self.fpn_convs.append(extra_fpn_conv)
+                if self.attention:
+                    position_embedding = PositionEmbeddingSine(num_pos_feats=out_channels // 2, normalize=True)
+                    transformer_layer = TransformerEncoderLayer(out_channels, nhead=2, dim_feedforward=out_channels * 2, dropout=0, normalize_before=False)
+                    self.position_embeddings.append(position_embedding)
+                    self.transformer_layers.append(transformer_layer)
 
     @auto_fp16()
-    def forward(self, inputs):
+    def forward(self, inputs, mask=None):
         assert len(inputs) == len(self.in_channels)
 
+        if self.down_first:
+            inputs[self.start_level] = resize(inputs[self.start_level], scale_factor=0.5)
         # build laterals
         laterals = [
             lateral_conv(inputs[i + self.start_level])
@@ -210,4 +235,20 @@ class FPN(BaseModule):
                         outs.append(self.fpn_convs[i](F.relu(outs[-1])))
                     else:
                         outs.append(self.fpn_convs[i](outs[-1]))
+        if self.attention:
+            trans_outs = []
+            for idx in range(len(outs)):
+                feat = outs[idx]
+                mask_interp = F.interpolate(mask[:, 0, :, :][None], size=feat.shape[-2:]).to(torch.bool)[0]  # [B, h, w]
+                pos = self.position_embeddings[idx](feat, mask_interp)   # [B, 32, h, w]
+        
+                # transformer forward
+                bs, c, h, w = feat.shape
+                feat = feat.flatten(2).permute(2, 0, 1)  # [hw, bs, c]
+                pos = pos.flatten(2).permute(2, 0, 1)     # [hw, bs, 32]
+                mask_interp = mask_interp.flatten(1)      # [hw, bs]
+                trans_feat = self.transformer_layers[idx](feat, src_key_padding_mask=mask_interp, pos=pos)  
+                trans_feat = trans_feat.permute(1, 2, 0).reshape(bs, c, h, w)  # [bs, c, h, w]
+                trans_outs.append(trans_feat)
+            outs = trans_outs
         return tuple(outs)

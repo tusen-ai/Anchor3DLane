@@ -6,9 +6,11 @@
 # nowherespyfly@gmail.com
 # --------------------------------------------------------
 
-from tarfile import LENGTH_LINK
-import torch
 import pdb
+from tarfile import LENGTH_LINK
+
+import torch
+
 INFINITY = 987654.
 
 def projection_transform(Matrix, xs, ys, zs):
@@ -47,23 +49,23 @@ def Partial_Euclidean_dis(proposals, targets, num_pro, num_tar, anchor_len=10, c
     distances = distances.reshape(num_pro, num_tar)   # [Np, Nt]
     return distances
 
-def Manhattan_dis(proposals, targets, num_pro, num_tar, anchor_len=10):
-    target_vis = targets[:, 5 + anchor_len * 2:5 + anchor_len * 3]   # [Np * Nt, 10], -1e5, if non-lane
+def Manhattan_dis(proposals, targets, num_pro, num_tar, anchor_len=10, start_idx=5):
+    target_vis = targets[:, start_idx + anchor_len * 2:start_idx + anchor_len * 3]   # [Np * Nt, 10], -1e5, if non-lane
     lengths = target_vis.sum(dim=1)  # [Np * Nt]
-    distances_all = torch.abs((targets - proposals)) # [Np * Nt, 35]
-    distances_x = distances_all[:, 5:5 + anchor_len]
-    distances_z = distances_all[:, 5 + anchor_len:5 + anchor_len * 2]
+    distances_all = torch.abs((targets[:, start_idx:start_idx + anchor_len * 2] - proposals[:, start_idx:start_idx + anchor_len * 2])) # [Np * Nt, 35]
+    distances_x = distances_all[:, start_idx:start_idx + anchor_len]
+    distances_z = distances_all[:, start_idx + anchor_len:start_idx + anchor_len * 2]
     distances = ((abs(distances_x)  + abs(distances_z)) * target_vis).sum(dim=1) / (lengths + 1e-9)   # [Np * Nt]
     distances[lengths < 0] = INFINITY
     distances = distances.reshape(num_pro, num_tar)   # [Np, Nt]
     return distances
 
-def Height_dis(proposals, targets, num_pro, num_tar, anchor_len=10):
-    target_vis = targets[:, 5 + anchor_len * 2:5 + anchor_len * 3]   # [Np * Nt, 10], -1e5, if non-lane
+def Height_dis(proposals, targets, num_pro, num_tar, anchor_len=10, start_idx=5):
+    target_vis = targets[:, start_idx + anchor_len * 2:start_idx + anchor_len * 3]   # [Np * Nt, 10], -1e5, if non-lane
     lengths = target_vis.sum(dim=1)  # [Np * Nt]
     distances_all = torch.abs((targets - proposals)) # [Np * Nt, 35]
     # distances_x = distances_all[:, 5:5 + anchor_len]
-    distances_z = distances_all[:, 5 + anchor_len:5 + anchor_len * 2]
+    distances_z = distances_all[:, start_idx + anchor_len:start_idx + anchor_len * 2]
     distances = (torch.abs(distances_z) * target_vis).sum(dim=1) / (lengths + 1e-9)   # [Np * Nt]
     # distances = (((distances_x ** 2  + distances_z ** 2) ** 0.5) * target_vis).sum(dim=1) / (lengths + 1e-9)   # [Np * Nt]
     distances[lengths < 0] = INFINITY

@@ -10,10 +10,11 @@ import mmcv
 import torch
 from mmcv.cnn.utils import revert_sync_batchnorm
 from mmcv.runner import (get_dist_info, init_dist, load_checkpoint,
-                         wrap_fp16_model)
+                         wrap_fp16_model,)
 from mmcv.utils import DictAction
 
 from mmseg import digit_version
+
 # from mmseg.apis import test_anchornet as test
 # from mmseg.apis.test_anchornet_openlane import test_openlane as test
 from mmseg.datasets import build_dataloader, build_dataset
@@ -42,6 +43,7 @@ def parse_args():
         'submit it to the test server')
     parser.add_argument('--show', action='store_true', help='show results')
     parser.add_argument('--eval', action='store_true', help='show results', default=True)
+    parser.add_argument('--eval-splits', action='store_true', default=False)
     parser.add_argument(
         '--show-dir', help='directory where painted images will be saved')
     parser.add_argument(
@@ -203,16 +205,20 @@ def main():
         model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids)
         test(model,
              data_loader,
-             args.eval,
-             args.show,
-             args.show_dir)
+             eval=args.eval,
+             eval_splits=args.eval_splits,
+             show=args.show,
+             out_dir=args.show_dir)
     else:
         if cfg.data.test.type.startswith('Openlane') or cfg.data.test.type.startswith('Waymo'):
-            from mmseg.apis.test_openlane import test_openlane_multigpu as test_multigpu
+            from mmseg.apis.test_openlane import (
+                test_openlane_multigpu as test_multigpu,)
         elif cfg.data.test.type.startswith('ONCE'):
-            from mmseg.apis.test_once import test_once_multigpu as test_multigpu
+            from mmseg.apis.test_once import (
+                test_once_multigpu as test_multigpu,)
         elif cfg.data.test.type.startswith('APOLLOSIM'):
-            from mmseg.apis.test_apollosim import test_apollosim_multigpu as test_multigpu
+            from mmseg.apis.test_apollosim import (
+                test_apollosim_multigpu as test_multigpu,)
         else:
             raise Exception("No dataset", cfg.data.test.type)
         
@@ -225,6 +231,7 @@ def main():
         test_multigpu(model,
                       data_loader,
                       args.eval,
+                      args.eval_splits,
                       args.show,
                       args.show_dir)
 

@@ -34,28 +34,32 @@ Evaluation metrics includes:
     z error close (0 - 40 m)
     z error far (0 - 100 m)
 """
-import sys
-import numpy as np
+import copy
+import json
+import math
 import os
 import os.path as ops
 import pdb
-import copy
-import math
-import json
+import sys
+
+import numpy as np
 from scipy.interpolate import interp1d
-from .utils import *
+
 from .MinCostFlow import SolveMinCostFlow
+from .utils import *
+
 
 class OpenLaneEval(object):
     def __init__(self, db):        
         self.dataset_dir = db.data_root
 
-        self.top_view_region = np.array([[-10, 103], [10, 103], [-10, 3], [10, 3]])
+        self.top_view_region = db.top_view_region
         self.x_min = self.top_view_region[0, 0]
         self.x_max = self.top_view_region[1, 0]
         self.y_min = self.top_view_region[2, 1]
         self.y_max = self.top_view_region[0, 1]
-        self.y_samples = np.linspace(self.y_min, self.y_max, num=100, endpoint=False)
+        self.y_range = int(self.y_max - self.y_min)
+        self.y_samples = np.linspace(self.y_min, self.y_max, num=self.y_range, endpoint=False)
         self.dist_th = 1.5
         self.ratio_th = 0.75
         self.close_range = 40
@@ -119,8 +123,8 @@ class OpenLaneEval(object):
         cnt_gt = len(gt_lanes)
         cnt_pred = len(pred_lanes)
 
-        gt_visibility_mat = np.zeros((cnt_gt, 100))
-        pred_visibility_mat = np.zeros((cnt_pred, 100))
+        gt_visibility_mat = np.zeros((cnt_gt, self.y_range))
+        pred_visibility_mat = np.zeros((cnt_pred, self.y_range))
 
         # resample gt and pred at y_samples
         for i in range(cnt_gt):

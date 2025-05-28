@@ -1,31 +1,30 @@
 # --------------------------------------------------------
-# Source code for Anchor3DLane
+# Source code for Anchor3DLane++
 # Copyright (c) 2023 TuSimple
-# @Time    : 2023/04/05
+# @Time    : 2025/05/07
 # @Author  : Shaofei Huang
 # nowherespyfly@gmail.com
 # --------------------------------------------------------
 
-from re import L
-import os
 import json
-import pickle
-
-import tqdm
+import os
 import pdb
+import pickle
+from copy import deepcopy
+from re import L
 
 import cv2
 import numpy as np
-from torchvision.transforms import ToTensor
 import torchvision.transforms.functional as F
-from torch.utils.data import Dataset
-from copy import deepcopy
+import tqdm
 from scipy.interpolate import interp1d
+from torch.utils.data import Dataset
+from torchvision.transforms import ToTensor
 
-from ..tools.utils import *
-from ..tools import eval_openlane
 from ..builder import DATASETS
 from ..pipelines import Compose
+from ..tools import eval_openlane
+from ..tools.utils import *
 
 RED = (0, 0, 255)
 GREEN = (0, 255, 0)
@@ -58,13 +57,18 @@ class OpenlaneDataset(Dataset):
                  img_dir='images', 
                  img_suffix='.jpg',
                  data_list='training.txt',
+                 data_list_dir='data_lists',
+                 cache_dir='cache_dense',
+                 eval_dir='data_splits',
                  test_list=None,
                  test_mode=False,
                  dataset_config=None,
                  y_steps = [  5,  10,  15,  20,  30,  40,  50,  60,  80,  100],
+                 top_view = [[-10, 103], [10, 103], [-10, 3], [10, 3]],
                  is_resample=True, 
                  visibility=False,
-                 no_cls=False):
+                 no_cls=False,
+                 max_lanes=-1):
         self.pipeline = Compose(pipeline)
         self.data_root = data_root
         self.img_dir = os.path.join(data_root, img_dir)
@@ -73,11 +77,12 @@ class OpenlaneDataset(Dataset):
         self.metric = 'default'
         self.is_resample = is_resample
         self.dataset_config = dataset_config
-        self.data_list = os.path.join(data_root, 'data_lists', data_list)
-        self.cache_dir = os.path.join(data_root, 'cache_dense')
-        self.eval_file = os.path.join(data_root, 'data_splits', 'validation.json')  
+        self.data_list = os.path.join(data_root, data_list_dir, data_list)
+        self.cache_dir = os.path.join(data_root, cache_dir)
+        self.eval_file = os.path.join(data_root, eval_dir, 'validation.json')  
         self.visibility = visibility
         self.no_cls = no_cls
+        self.max_lanes = max_lanes
         
         print('is_resample: {}'.format(is_resample))
         inp_h, inp_w = dataset_config['input_size']
@@ -97,7 +102,7 @@ class OpenlaneDataset(Dataset):
         self.ipm_h = 208  # 26
         self.ipm_w = 128  # 16
 
-        self.top_view_region = np.array([[-10, 103], [10, 103], [-10, 3], [10, 3]])
+        self.top_view_region = np.array(top_view)
         self.H_crop_ipm = homography_crop_resize([self.h_org, self.w_org], self.h_crop, [self.h_net, self.w_net])
         self.H_crop_im  = homography_crop_resize([self.h_org, self.w_org], self.h_crop, [self.h_org, self.w_org])
         self.H_crop_resize_im = homography_crop_resize([self.h_org, self.w_org], self.h_crop, [self.resize_h, self.resize_w])
@@ -118,6 +123,7 @@ class OpenlaneDataset(Dataset):
 
         self.y_min = self.top_view_region[2, 1]
         self.y_max = self.top_view_region[0, 1]
+        self.y_range = int(self.y_max - self.y_min)
         if self.is_resample:
             self.gflatYnorm = self.anchor_y_steps[-1]
             self.gflatZnorm = 10
@@ -135,7 +141,6 @@ class OpenlaneDataset(Dataset):
             self.sample_hz = 4
 
         self.img_w, self.img_h = self.h_org, self.w_org
-        self.max_lanes = 25
         self.normalize = True
         self.to_tensor = ToTensor()
 
@@ -180,6 +185,8 @@ class OpenlaneDataset(Dataset):
             results.update(obj)
         if self.no_cls:
             results['gt_3dlanes'][:, 1] = results['gt_3dlanes'][:, 1] > 0
+        if self.max_lanes > -1:
+            results['gt_3dlanes'] = results['gt_3dlanes'][:self.max_lanes]
         results['img_metas'] = {'ori_shape':results['ori_shape']}
         results['gt_project_matrix'] = projection_g2im_extrinsic(results['gt_camera_extrinsic'], results['gt_camera_intrinsic'])
         results['gt_homography_matrix'] = homography_g2im_extrinsic(results['gt_camera_extrinsic'], results['gt_camera_intrinsic'])
@@ -217,7 +224,7 @@ class OpenlaneDataset(Dataset):
         json_line["laneLines_logit"] = logits_lanes
         return json_line
 
-    def format_results(self, predictions, filename):
+    def format_results(self, predictions, filename, use_sigmoid=False):
         with open(filename, 'w') as jsonFile:
             for idx in tqdm.tqdm(range(len(predictions))):
                 result = self.pred2apollosimformat(idx, predictions[idx])
@@ -225,7 +232,10 @@ class OpenlaneDataset(Dataset):
                 save_result['file_path'] = result['raw_file']
                 lane_lines = []
                 for k in range(len(result['laneLines'])):
-                    cate = int(np.argmax(result['laneLines_logit'][k][1:])) + 1
+                    if use_sigmoid:
+                        cate = int(np.argmax(result['laneLines_logit'][k])) + 1
+                    else:
+                        cate = int(np.argmax(result['laneLines_logit'][k][1:])) + 1
                     prob = float(result['laneLines_prob'][k])
                     lane_lines.append({'xyz': result['laneLines'][k], 'category': cate, 'laneLines_prob': prob})
                 save_result['lane_lines'] = lane_lines
@@ -233,17 +243,19 @@ class OpenlaneDataset(Dataset):
                 jsonFile.write('\n')
         print("save results to ", filename)
 
-    def eval(self, pred_filename, prob_th=0.5):
+    def eval(self, pred_filename, prob_th=0.5, test_list=None):
         evaluator = eval_openlane.OpenLaneEval(self)
         pred_lines = open(pred_filename).readlines()
-        json_pred = [json.loads(line) for line in pred_lines]
+        json_pred = [json.loads(line, strict=False) for line in pred_lines]
         json_gt = [json.loads(line) for line in open(self.eval_file).readlines()]
         if len(json_gt) != len(json_pred):
             print("gt len:", len(json_gt))
             print("pred len:", len(json_pred))
             # raise Exception('We do not get the predictions of all the test tasks')
+        if test_list is not None:
+            self.test_list = test_list
         if self.test_list is not None:
-            test_list = [s.strip().split('.')[0] for s in open(self.test_list, 'r').readlines()]
+            test_list = [s.strip().split('.')[0] for s in open(self.data_root, 'lane3d_1000/test', self.test_list, 'r').readlines()]
             json_pred = [s for s in json_pred if s['file_path'][:-4] in test_list]
             json_gt = [s for s in json_gt if s['file_path'][:-4] in test_list]
         gts = {l['file_path']: l for l in json_gt}

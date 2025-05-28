@@ -6,18 +6,19 @@
 # nowherespyfly@gmail.com
 # --------------------------------------------------------
 
+import pdb
 from collections.abc import Sequence
+from os import path as osp
 
+import cv2
 import mmcv
 import numpy as np
 import torch
 from mmcv.parallel import DataContainer as DC
-from os import path as osp
 
 from ..builder import PIPELINES
 from .formatting import to_tensor
-import cv2
-import pdb
+
 
 @PIPELINES.register_module()
 class LaneFormat(object):
@@ -69,6 +70,12 @@ class LaneFormat(object):
             results['prev_poses'] = DC(to_tensor(np.stack(results['prev_poses'], axis=0).astype(np.float32)), stack=True)  # [Np, 3, 4]
         if 'mask' in results:
             results['mask'] = DC(to_tensor(results['mask'][None, ...].astype(np.float32)), stack=True)
+        if 'voxels' in results:
+            results['num_voxels'] = DC(to_tensor(results['voxels']['num_voxels']))
+            results['num_points'] = DC(to_tensor(results['voxels']['num_points']))
+            results['shape'] = DC(to_tensor(results['voxels']['shape']))
+            results['coordinates'] = DC(to_tensor(results['voxels']['coordinates']))
+            results['voxels'] = DC(to_tensor(results['voxels']['voxels']))
         return results
 
     def __repr__(self):
@@ -84,4 +91,34 @@ class MaskGenerate(object):
         mask  = np.ones((self.input_size[0], self.input_size[1]), dtype=np.bool)
         mask = np.logical_not(mask)
         results['mask'] = mask
+        return results
+    
+@PIPELINES.register_module()
+class AngleCalculate(object):
+    def __init__(self, start_idx=5, anchor_gt_len=200, anchor_len=100):
+        self.start_idx = start_idx
+        self.anchor_len = anchor_len
+        self.anchor_gt_len = anchor_gt_len
+        self.y_steps = np.linspace(1, anchor_len, anchor_len)
+        self.x_range = 30.0
+    def __call__(self, results):
+        lanes = results['gt_3dlanes']
+        for idx, l in enumerate(lanes):
+            if l[1] > 0:
+                # TODO: replace anchor len
+                vis = l[405:505]
+                if (vis > 0.5).sum() < 2:
+                    lanes[idx][2] = 0
+                    lanes[idx][3] = 0
+                    lanes[idx][4] = min(max(l[5] / self.x_range, -1), 1)
+                else:
+                    xs = l[5:105][vis > 0.5] 
+                    ys = self.y_steps[vis > 0.5]
+                    zs = l[205:305][vis > 0.5]
+                    yaw = (np.arctan((xs[1:] - xs[0]) / (ys[1:] - ys[0])) / np.pi).mean()
+                    pitch = (np.arctan((zs[1:] - zs[0]) / (ys[1:] - ys[0])) / np.pi).mean()
+                    lanes[idx][2] = yaw
+                    lanes[idx][3] = pitch
+                    lanes[idx][4] = min(max(l[5] / self.x_range, -1), 1)
+        results['gt_3dlanes'] = lanes
         return results

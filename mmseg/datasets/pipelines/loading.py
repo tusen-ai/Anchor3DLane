@@ -1,11 +1,11 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+import gc
 import os.path as osp
+import pdb
+import pickle
 
 import mmcv
 import numpy as np
-import gc
-import pdb
-import pickle
 
 from ..builder import PIPELINES
 
@@ -340,3 +340,24 @@ class LoadAnnotationsList(object):
         repr_str += f'(reduce_zero_label={self.reduce_zero_label},'
         repr_str += f"imdecode_backend='{self.imdecode_backend}')"
         return repr_str
+    
+@PIPELINES.register_module()
+class LoadPointCloudFromFile(object):
+    def __init__(self, dataset="Waymo", rotate_xy=True, **kwargs):
+        self.type = dataset
+        self.rotate_xy = rotate_xy
+        self.v2g = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]], dtype=np.float32)
+
+    def __call__(self, results):
+        with open(results['lidar_file'], 'rb') as f:
+            obj = pickle.load(f)
+        points_xyz = obj["lidars"]["points_xyz"]   # [N, 3]
+        if self.rotate_xy:
+            points_xyz = np.matmul(self.v2g, points_xyz.T)
+            points_xyz = points_xyz.T   # [N, 3]
+        points_feature = obj["lidars"]["points_feature"]
+        # normalize intensity 
+        points_feature[:, 0] = np.tanh(points_feature[:, 0])
+        points = np.concatenate([points_xyz, points_feature], axis=-1)  # [N, 5]
+        results['points'] = points
+        return results

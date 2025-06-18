@@ -165,11 +165,13 @@ Anchor3DLane++ | ResNet-50 | PointPillars | 360x480 | 61.1 | 93.1 | 0.147 | 0.16
 Anchor3DLane++ | ResNet-50 | PointPillars | 720x960 | 62.9 | 93.6 | 0.148 | 0.152 | 0.047 | 0.079 | [download](https://pan.baidu.com/s/1TdeaW8UoAqYuTTri-OZFxg?pwd=pb5g)
 
 ### ONCE-3DLane
-Model | Backbone | F1 | Precision | Recall | CD Error/m | Baidu Drive Link
+Model | Backbone | Resolution | F1 | Precision | Recall | CD Error/m | Baidu Drive Link
 --- |:---:|:---:|:---:|:---:|:---:|---:
-Anchor3DLane | ResNet-18 | 74.44 | 80.50 | 69.23 | 0.064 | [download](https://pan.baidu.com/s/1-vjriECcWQrVCCb-iumR8w?pwd=8nrc)
-Anchor3DLane | EfficientNet-B3 | 75.02 | 83.22 | 68.29 | 0.064 | [download](https://pan.baidu.com/s/1mvcHcwFOTX0pbyWdA0MiXw?pwd=y8k8)
-Anchor3DLane+ | ResNet-18 | 74.87 | 80.85 | 69.71 | 0.060 | [download](https://pan.baidu.com/s/1wNx1MY1fhLJJdYWT2P5JDA?pwd=q2xk)
+Anchor3DLane | ResNet-18 | 360x480 | 74.44 | 80.50 | 69.23 | 0.064 | [download](https://pan.baidu.com/s/1-vjriECcWQrVCCb-iumR8w?pwd=8nrc)
+Anchor3DLane | EfficientNet-B3 | 360x480 | 75.02 | 83.22 | 68.29 | 0.064 | [download](https://pan.baidu.com/s/1mvcHcwFOTX0pbyWdA0MiXw?pwd=y8k8)
+Anchor3DLane-Iter | ResNet-18 | 360x480 | 74.87 | 80.85 | 69.71 | 0.060 | [download](https://pan.baidu.com/s/1wNx1MY1fhLJJdYWT2P5JDA?pwd=q2xk)
+Anchor3DLane++ | ResNet-18 | 360x480 |79.55 | 82.67 | 76.67 | 0.059 | [download](https://pan.baidu.com/s/1TXpyPivmuSlN6MSszmo_ZQ?pwd=jg5n)
+Anchor3DLane++ | ResNet-50 | 720x960 | 81.25 | 84.18 | 78.52 | 0.055| [download](https://pan.baidu.com/s/10Uh1Q9eowupZI1oxkNAyZg?pwd=xd2m)
 
 ## Testing
 Run the following commands to evaluate the given checkpoint:

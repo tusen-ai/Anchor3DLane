@@ -8,6 +8,7 @@ This repo is the official PyTorch implementation for the following papers:
 In this paper, we deﬁne 3D lane anchors in the 3D space and propose a BEV-free method named Anchor3DLane to predict 3D lanes directly from FV representations. 3D lane anchors are projected to the FV features to extract their features which contain both good structural and context information to make accurate predictions. We further extend Anchor3DLane to the multi-frame setting to incorporate temporal information for performance improvement.
 
 ## Update
+- [2025/06/27] We have also hosted a copy of all data and checkpoints on [Hugging Face](https://huggingface.co/nowherespyfly/anchor3dlane) to make our data and model accessible to researchers worldwide.
 - [2025/05/28] We have added the code of Anchor3DLane++ in the [```anchor3dlane++``` branch](https://github.com/tusen-ai/Anchor3DLane/tree/anchor3dlane++).
 - [2023/06/02] We have added the code to generate data lists in the data conversion tools.
 - [2023/06/15] We have supported testing with multiple GPUs.
@@ -96,12 +97,12 @@ python openlane.py [openlane_root] --merge
 python openlane.py [openlane_root] --generate
 ```
 
-**(optional) 3.** If you wish to run the multi-frame experiments, you need to download the cross-frame pose data processed by us from [Baidu Drive](https://pan.baidu.com/s/1fxwyLeueTQKg6iBhFeIAog?pwd=7qkx).
+**(optional) 3.** If you wish to run the multi-frame experiments, you need to download the cross-frame pose data processed by us from [Baidu Drive](https://pan.baidu.com/s/1fxwyLeueTQKg6iBhFeIAog?pwd=7qkx) or [HuggingFace](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/prev_data_release.tar).
 
 We also provide the cross-frame pose extraction script at `tools/convert_dataset/openlane_temporal.py` to allow customized use. 
 You can fetch the raw pose data link at [Baidu Drive](https://pan.baidu.com/s/1bgLSgO9wiypOsjNjRKcJZA?pwd=69mh) or extract the raw pose data with tools provided in [save_pose()](https://github.com/fundamentalvision/BEVFormer/blob/master/tools/data_converter/waymo_converter.py#L353).
 
-**(optional) 4.** For the camera-LiDAR fusion settings in Anchor3dlane++, we also provide LiDAR data([Baidu Drive](https://pan.baidu.com/s/1fxwyLeueTQKg6iBhFeIAog?pwd=7qkx)), which is extracted from the original [Waymo dataset](https://waymo.com/open/). If you would like to conduct multi-sensor fusion experiments, you can download the corresponding data from the provided link.
+**(optional) 4.** For the camera-LiDAR fusion settings in Anchor3dlane++, please extract points data from [Waymo dataset](https://waymo.com/open/) and save each item into a `pkl' file. We provide an example at [lidar_example](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/1507332769891062.pkl) for reference.
 
 ### ONCE-3DLane
 **1.** Refer to [ONCE-3DLane Dataset](https://github.com/once-3dlanes/once_3dlanes_benchmark) for data downloading and organize the data folder as mentioned above.
@@ -119,22 +120,22 @@ For OpenLane dataset, we additional provide weights for Anchor3DLane-T+(with mul
 
 ### ApolloSim
 
-Model | F1 | AP | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Drive Link
---- |:---:|:---:|:---:|:---:|:---:|:---:|---:
-Anchor3DLane | 95.6 | 97.2 | 0.052 | 0.306 | 0.015 | 0.223 | [download](https://pan.baidu.com/s/1HPYxsNNSOO5CY7-RwAt9cw?pwd=bqvy)
-Anchor3DLane-Iter | 97.1 | 95.4 | 0.045 | 0.300 | 0.016 | 0.223 | [download](https://pan.baidu.com/s/1f4Ssts_cUU7kGtXUyRulLA?pwd=pfe5)
+Model | F1 | AP | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Drive Link | HuggingFace Link
+--- |:---:|:---:|:---:|:---:|:---:|:---:|---:|---:
+Anchor3DLane | 95.6 | 97.2 | 0.052 | 0.306 | 0.015 | 0.223 | [download](https://pan.baidu.com/s/1HPYxsNNSOO5CY7-RwAt9cw?pwd=bqvy) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Apollosim/apollo_anchor3dlane.pth)
+Anchor3DLane-Iter | 97.1 | 95.4 | 0.045 | 0.300 | 0.016 | 0.223 | [download](https://pan.baidu.com/s/1f4Ssts_cUU7kGtXUyRulLA?pwd=pfe5) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Apollosim/apollo_anchor3dlane_iter.pth)
 
 
 ### OpenLane
 
 #### Results on OpenLane-v1.1.
 
-Model | Backbone | F1 | Cate Acc | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Drive Link
---- |:---:|:---:|:---:|:---:|:---:|:---:|:---:|---:
-Anchor3DLane | ResNet-18 | 53.1 | 90.0 | 0.300 | 0.311 | 0.103 | 0.139 | [download](https://pan.baidu.com/s/1doS4NzNdxjjuKLTazVvQFw?pwd=b7b5)
-Anchor3DLane | EfficientNet-B3 | 56.0 | 89.0 | 0.293 | 0.317 | 0.103 | 0.130 | [download](https://pan.baidu.com/s/1NYTGmaXSKu28SvKi_-DdKA?pwd=8455)
-Anchor3DLane-Iter | ResNet-18 | 53.7 | 90.9 | 0.276 | 0.311 | 0.107 | 0.138 | [download](https://pan.baidu.com/s/1n1kzIWKCEY9VOBuyi5RU_g?pwd=ew8k)
-Anchor3DLane-Iter-T | ResNet-18 | 54.3 | 90.7 | 0.275 | 0.310 | 0.105 | 0.135 | [download](https://pan.baidu.com/s/1aEzaqONTa93xQlacQL_N8g?pwd=ymk2)
+Model | Backbone | F1 | Cate Acc | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Drive Link | HuggingFace Link
+--- |:---:|:---:|:---:|:---:|:---:|:---:|:---:|---:|---:
+Anchor3DLane | ResNet-18 | 53.1 | 90.0 | 0.300 | 0.311 | 0.103 | 0.139 | [download](https://pan.baidu.com/s/1doS4NzNdxjjuKLTazVvQFw?pwd=b7b5) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlane_anchor3dlane.pth)
+Anchor3DLane | EfficientNet-B3 | 56.0 | 89.0 | 0.293 | 0.317 | 0.103 | 0.130 | [download](https://pan.baidu.com/s/1NYTGmaXSKu28SvKi_-DdKA?pwd=8455) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlane_anchor3dlane_effb3.pth)
+Anchor3DLane-Iter | ResNet-18 | 53.7 | 90.9 | 0.276 | 0.311 | 0.107 | 0.138 | [download](https://pan.baidu.com/s/1n1kzIWKCEY9VOBuyi5RU_g?pwd=ew8k) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlane_anchor3dlane_iter.pth)
+Anchor3DLane-Iter-T | ResNet-18 | 54.3 | 90.7 | 0.275 | 0.310 | 0.105 | 0.135 | [download](https://pan.baidu.com/s/1aEzaqONTa93xQlacQL_N8g?pwd=ymk2) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlane_anchor3dlane_temporal_iter.pth)
 
 Note: We use an earlier version of the Openlane dataset in our paper, whose annotations are significantly inconsistent in lane points' coordinates with the latest version as mentioned in [this issue](https://github.com/OpenDriveLab/OpenLane/issues/59).
 Thus, it is normal if you cannot obtain the performances reported in our paper by testing the checkpoints we provided on the latest OpenLane validation set. But you can still reproduce the performances by training on the training set of the latest version.
@@ -144,34 +145,34 @@ We also provide checkpoints of single-frame settings on the latest Opanlane data
 
 **Camera only:**
 
-Model | Backbone | Resolution | F1 | Cate Acc | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Drive Link
---- |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---:
-Anchor3DLane | ResNet-18 | 360x480 | 53.1 | 88.9 | 0.269 | 0.293 | 0.079 | 0.111 | [download](https://pan.baidu.com/s/14JmWTcX6UgImS90o9cq9fg?pwd=mhff)
-Anchor3DLane-Iter | ResNet-18 | 360x480 | 53.6 | 89.8 | 0.272 | 0.292 | 0.085 | 0.116 | [download](https://pan.baidu.com/s/1Hu0P5OPuvRJnLQjHW_-PgA?pwd=t6ba)
-Anchor3DLane-Iter | ResNet-50 | 720x960 | 57.5 | 91.9 | 0.229 | 0.243 | 0.079 | 0.106 | [download](https://pan.baidu.com/s/14LID1kvzyllLDnIblaXXTw?pwd=yz2b)
-Anchor3DLane++ | ResNet-18 | 360x480 | 57.9 | 91.4 | 0.232 | 0.265 | 0.076 | 0.102 | [download](https://pan.baidu.com/s/1_7z3BdAOmE7uekB0-g9SsQ?pwd=bkvj)
-Anchor3DLane++ | ResNet-50 | 360x480 | 59.4 | 92.6 | 0.227 | 0.244 | 0.075 | 0.100 | [download](https://pan.baidu.com/s/1jte4uP6qV2Kz5JAy8iLEOg?pwd=d9a2)
-Anchor3DLane++ | ResNet-50 | 720x960 | 62.4 | 93.4 | 0.202 | 0.237 | 0.073 | 0.100 | [download](https://pan.baidu.com/s/1p3utwpYCBCi2G1ci172V1w?pwd=3yi5)
+Model | Backbone | Resolution | F1 | Cate Acc | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Drive Link | HuggingFace Link
+--- |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---:|---:
+Anchor3DLane | ResNet-18 | 360x480 | 53.1 | 88.9 | 0.269 | 0.293 | 0.079 | 0.111 | [download](https://pan.baidu.com/s/14JmWTcX6UgImS90o9cq9fg?pwd=mhff) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlanev2_anchor3dlane.pth)
+Anchor3DLane-Iter | ResNet-18 | 360x480 | 53.6 | 89.8 | 0.272 | 0.292 | 0.085 | 0.116 | [download](https://pan.baidu.com/s/1Hu0P5OPuvRJnLQjHW_-PgA?pwd=t6ba) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlanev2_anchor3dlane_iter.pth)
+Anchor3DLane-Iter | ResNet-50 | 720x960 | 57.5 | 91.9 | 0.229 | 0.243 | 0.079 | 0.106 | [download](https://pan.baidu.com/s/14LID1kvzyllLDnIblaXXTw?pwd=yz2b) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlanev2_anchor3dlane_iter_r50x2.pth)
+Anchor3DLane++ | ResNet-18 | 360x480 | 57.9 | 91.4 | 0.232 | 0.265 | 0.076 | 0.102 | [download](https://pan.baidu.com/s/1_7z3BdAOmE7uekB0-g9SsQ?pwd=bkvj) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlane_anchor3dlane%2B%2B_r18.pth)
+Anchor3DLane++ | ResNet-50 | 360x480 | 59.4 | 92.6 | 0.227 | 0.244 | 0.075 | 0.100 | [download](https://pan.baidu.com/s/1jte4uP6qV2Kz5JAy8iLEOg?pwd=d9a2) |[download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlane_anchor3dlane%2B%2B_r50.pth)
+Anchor3DLane++ | ResNet-50 | 720x960 | 62.4 | 93.4 | 0.202 | 0.237 | 0.073 | 0.100 | [download](https://pan.baidu.com/s/1p3utwpYCBCi2G1ci172V1w?pwd=3yi5) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlane_anchor3dlane%2B%2B_r50x2.pth)
 
 **Camera-LiDAR fusion:**
 
-Model | Image Backbone | LiDAR Encoder | Image Resolution | F1 | Cate Acc | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Drive Link
---- |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---:
-Anchor3DLane++ | ResNet-18 | SECOND | 360x480 | 59.8 | 92.6 | 0.167 | 0.170 | 0.035 | 0.060 | [download](https://pan.baidu.com/s/1NilOdzhK8DA2ZQMmMwquvw?pwd=k4m6)
-Anchor3DLane++ | ResNet-50 | SECOND | 360x480 | 61.4 | 92.9 | 0.149 | 0.160 | 0.033 | 0.058 | [download](https://pan.baidu.com/s/1cOOJdOeH6dQGtALyHnW-Yw?pwd=9wcb)
-Anchor3DLane++ | ResNet-50 | SECOND | 720x960 | 62.9 | 93.6 | 0.134 | 0.137 | 0.033 | 0.057 | [download](https://pan.baidu.com/s/1tfcVI_AbZN4EhL4auH2ZZw?pwd=hna3)
-Anchor3DLane++ | ResNet-18 | PointPillars | 360x480 | 60.0 | 92.5 | 0.164 | 0.177 | 0.049 | 0.082 | [download](https://pan.baidu.com/s/1dcuNYGEI86Mot2f1wAFXhw?pwd=t5nv)
-Anchor3DLane++ | ResNet-50 | PointPillars | 360x480 | 61.1 | 93.1 | 0.147 | 0.165 | 0.055 | 0.091 | [download](https://pan.baidu.com/s/1etYo-C5zvdvPJQTfacqwtA?pwd=xhrx)
-Anchor3DLane++ | ResNet-50 | PointPillars | 720x960 | 62.9 | 93.6 | 0.148 | 0.152 | 0.047 | 0.079 | [download](https://pan.baidu.com/s/1TdeaW8UoAqYuTTri-OZFxg?pwd=pb5g)
+Model | Image Backbone | LiDAR Encoder | Image Resolution | F1 | Cate Acc | x error close/m | x error far/m | z error close/m | z error far/m | Baidu Drive Link | HuggingFace Link
+--- |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---:|---:
+Anchor3DLane++ | ResNet-18 | SECOND | 360x480 | 59.8 | 92.6 | 0.167 | 0.170 | 0.035 | 0.060 | [download](https://pan.baidu.com/s/1NilOdzhK8DA2ZQMmMwquvw?pwd=k4m6) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlane_anchor3dlane%2B%2B_r18_se.pth)
+Anchor3DLane++ | ResNet-50 | SECOND | 360x480 | 61.4 | 92.9 | 0.149 | 0.160 | 0.033 | 0.058 | [download](https://pan.baidu.com/s/1cOOJdOeH6dQGtALyHnW-Yw?pwd=9wcb) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlane_anchor3dlane%2B%2B_r50_se.pth)
+Anchor3DLane++ | ResNet-50 | SECOND | 720x960 | 62.9 | 93.6 | 0.134 | 0.137 | 0.033 | 0.057 | [download](https://pan.baidu.com/s/1tfcVI_AbZN4EhL4auH2ZZw?pwd=hna3) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlane_anchor3dlane%2B%2B_r50x2_se.pth)
+Anchor3DLane++ | ResNet-18 | PointPillars | 360x480 | 60.0 | 92.5 | 0.164 | 0.177 | 0.049 | 0.082 | [download](https://pan.baidu.com/s/1dcuNYGEI86Mot2f1wAFXhw?pwd=t5nv) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlane_anchor3dlane%2B%2B_r18_pp.pth)
+Anchor3DLane++ | ResNet-50 | PointPillars | 360x480 | 61.1 | 93.1 | 0.147 | 0.165 | 0.055 | 0.091 | [download](https://pan.baidu.com/s/1etYo-C5zvdvPJQTfacqwtA?pwd=xhrx) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlane_anchor3dlane%2B%2B_r50_pp.pth)
+Anchor3DLane++ | ResNet-50 | PointPillars | 720x960 | 62.9 | 93.6 | 0.148 | 0.152 | 0.047 | 0.079 | [download](https://pan.baidu.com/s/1TdeaW8UoAqYuTTri-OZFxg?pwd=pb5g) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Openlane/openlane_anchor3dlane%2B%2B_r50x2_pp.pth)
 
 ### ONCE-3DLane
-Model | Backbone | Resolution | F1 | Precision | Recall | CD Error/m | Baidu Drive Link
---- |:---:|:---:|:---:|:---:|:---:|---:|:---:
-Anchor3DLane | ResNet-18 | 360x480 | 74.44 | 80.50 | 69.23 | 0.064 | [download](https://pan.baidu.com/s/1-vjriECcWQrVCCb-iumR8w?pwd=8nrc)
-Anchor3DLane | EfficientNet-B3 | 360x480 | 75.02 | 83.22 | 68.29 | 0.064 | [download](https://pan.baidu.com/s/1mvcHcwFOTX0pbyWdA0MiXw?pwd=y8k8)
-Anchor3DLane-Iter | ResNet-18 | 360x480 | 74.87 | 80.85 | 69.71 | 0.060 | [download](https://pan.baidu.com/s/1wNx1MY1fhLJJdYWT2P5JDA?pwd=q2xk)
-Anchor3DLane++ | ResNet-18 | 360x480 |79.55 | 82.67 | 76.67 | 0.059 | [download](https://pan.baidu.com/s/1TXpyPivmuSlN6MSszmo_ZQ?pwd=jg5n)
-Anchor3DLane++ | ResNet-50 | 720x960 | 81.25 | 84.18 | 78.52 | 0.055| [download](https://pan.baidu.com/s/10Uh1Q9eowupZI1oxkNAyZg?pwd=xd2m)
+Model | Backbone | Resolution | F1 | Precision | Recall | CD Error/m | Baidu Drive Link | HuggingFace Link
+--- |:---:|:---:|:---:|:---:|:---:|---:|:---:|:---:
+Anchor3DLane | ResNet-18 | 360x480 | 74.44 | 80.50 | 69.23 | 0.064 | [download](https://pan.baidu.com/s/1-vjriECcWQrVCCb-iumR8w?pwd=8nrc) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Once/once_anchor3dlane.pth)
+Anchor3DLane | EfficientNet-B3 | 360x480 | 75.02 | 83.22 | 68.29 | 0.064 | [download](https://pan.baidu.com/s/1mvcHcwFOTX0pbyWdA0MiXw?pwd=y8k8) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Once/once_anchor3dlane_effb3.pth)
+Anchor3DLane-Iter | ResNet-18 | 360x480 | 74.87 | 80.85 | 69.71 | 0.060 | [download](https://pan.baidu.com/s/1wNx1MY1fhLJJdYWT2P5JDA?pwd=q2xk) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Once/once_anchor3dlane_iter.pth)
+Anchor3DLane++ | ResNet-18 | 360x480 |79.55 | 82.67 | 76.67 | 0.059 | [download](https://pan.baidu.com/s/1TXpyPivmuSlN6MSszmo_ZQ?pwd=jg5n) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Once/once_anchor3dlane%2B%2B_r18.pth)
+Anchor3DLane++ | ResNet-50 | 720x960 | 81.25 | 84.18 | 78.52 | 0.055| [download](https://pan.baidu.com/s/10Uh1Q9eowupZI1oxkNAyZg?pwd=xd2m) | [download](https://huggingface.co/nowherespyfly/anchor3dlane/blob/main/Once/openlane_anchor3dlane%2B%2B_r50x2.pth)
 
 ## Testing
 Run the following commands to evaluate the given checkpoint:
